@@ -40,8 +40,12 @@ public class SchemaInit {
 			return;
 		}
 		// 1. データベースが無ければ作成
+		//    権限やドライバの都合で失敗しても、既にDBが存在すれば後続の接続で動作するため、
+		//    ここでは致命的にせず処理を続ける。
 		try (Connection c = Db.getServerConnection(); Statement st = c.createStatement()) {
 			st.executeUpdate("CREATE DATABASE IF NOT EXISTS otameshirenshuu DEFAULT CHARACTER SET utf8mb4");
+		} catch (SQLException e) {
+			System.out.println("[SchemaInit] データベース作成をスキップしました: " + e.getMessage());
 		}
 		// 2. テーブル作成
 		try (Connection c = Db.getConnection(); Statement st = c.createStatement()) {

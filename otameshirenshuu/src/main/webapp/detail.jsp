@@ -55,6 +55,16 @@
 
     <div class="page-wrapper<%= pageMod %>">
 
+        <!-- 編集・新規モードでは、ヘッダー・明細・備考をすべて1つのformで囲む
+             （divの途中でformを開くとブラウザがformを早期に閉じ、明細の入力欄が
+               送信されなくなるため、page-wrapper直下でformを開く） -->
+        <% if (!isView) { %>
+        <form action="detail" method="POST" id="slip-form">
+            <% if (isEdit && slipId != null) { %>
+            <input type="hidden" name="id" value="<%= slipId %>">
+            <% } %>
+        <% } %>
+
         <!-- 上部ヘッダーエリア（基本情報とボタン） -->
         <div class="header-container">
 
@@ -65,14 +75,6 @@
 				<% } else { %>
 					<!-- 編集・新規モードの時は、一覧に戻らずポップアップを開く -->
 					<a href="#leave-popup" class="btn-back">←伝票一覧</a>
-				<% } %>
-
-			<!-- 編集・新規登録モードの時のみ入力欄全体をformタグで囲む -->
-				<% if (!isView) { %>
-					<form action="detail" method="POST" id="slip-form">
-					<% if (isEdit && slipId != null) { %>
-						<input type="hidden" name="id" value="<%= slipId %>">
-					<% } %>
 				<% } %>
 
             <!-- 日付と伝票番号の縦並びエリア -->
