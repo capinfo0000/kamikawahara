@@ -1,13 +1,13 @@
 package otameshirenshuu;
 
-import java.util.ArrayList;
-import java.util.Comparator;
+import java.sql.SQLException;
 import java.util.List;
 
 /**
- * 伝票データを保持するインメモリ・ストア（アプリ全体で1つ）。
- * DBを使わず、サーバー起動中だけデータを保持する（再起動でシードデータに戻る）。
- * 伝票番号(id)は登録のたびに自動採番する。
+ * 伝票データへのアクセス窓口。
+ * 以前はインメモリ保持だったが、データベース(MariaDB)保存に変更した。
+ * 画面・サーブレット側のコードを変えずに済むよう、これまでと同じメソッドを提供する。
+ * DBの検査例外(SQLException)は実行時例外に変換して呼び出し側に伝える。
  */
 public class SlipStore {
 
@@ -17,137 +17,71 @@ public class SlipStore {
 		return INSTANCE;
 	}
 
-	private final List<Slip> slips = new ArrayList<>();
-	private int nextId = 1;
+	private final SlipDao dao = new SlipDao();
 
 	private SlipStore() {
-		seed();
-	}
-
-	/** 全件のコピーを返す。 */
-	public synchronized List<Slip> findAll() {
-		return new ArrayList<>(slips);
-	}
-
-	/** ソート済みのコピーを返す。key: "id" or "date" / order: "asc" or "desc"。 */
-	public synchronized List<Slip> findAllSorted(String key, String order) {
-		List<Slip> list = new ArrayList<>(slips);
-		Comparator<Slip> cmp;
-		if ("date".equals(key)) {
-			// 日付が同じ場合は伝票番号で安定させる
-			cmp = Comparator.comparing(Slip::getDate).thenComparingInt(Slip::getId);
-		} else {
-			cmp = Comparator.comparingInt(Slip::getId);
-		}
-		if ("desc".equals(order)) {
-			cmp = cmp.reversed();
-		}
-		list.sort(cmp);
-		return list;
-	}
-
-	/**
-	 * キーワード検索＋ソート結果を返す。
-	 * 伝票番号・日付・取引先・購入物のいずれかにキーワードを含む伝票を対象とする。
-	 * キーワードが空なら全件（ソートのみ）。
-	 */
-	public synchronized List<Slip> findFiltered(String q, String key, String order) {
-		List<Slip> list = findAllSorted(key, order);
-		if (q == null || q.trim().isEmpty()) {
-			return list;
-		}
-		String needle = q.trim().toLowerCase();
-		List<Slip> result = new ArrayList<>();
-		for (Slip s : list) {
-			if (matches(s, needle)) {
-				result.add(s);
-			}
-		}
-		return result;
-	}
-
-	private boolean matches(Slip s, String needle) {
-		// 伝票番号
-		if (String.valueOf(s.getId()).contains(needle)) {
-			return true;
-		}
-		// 日付（yyyy-MM-dd と yyyy/MM/dd の両方で照合）
-		String date = (s.getDate() == null) ? "" : s.getDate().toLowerCase();
-		if (date.contains(needle) || date.replace("-", "/").contains(needle)) {
-			return true;
-		}
-		// 取引先
-		if (s.getPartnerName() != null && s.getPartnerName().toLowerCase().contains(needle)) {
-			return true;
-		}
-		// 購入物
-		if (s.getDescription() != null && s.getDescription().toLowerCase().contains(needle)) {
-			return true;
-		}
-		return false;
-	}
-
-	public synchronized Slip findById(int id) {
-		for (Slip s : slips) {
-			if (s.getId() == id) {
-				return s;
-			}
-		}
-		return null;
-	}
-
-	/** 新規登録。伝票番号を自動採番して返す。 */
-	public synchronized int add(Slip slip) {
-		slip.setId(nextId++);
-		slips.add(slip);
-		return slip.getId();
-	}
-
-	/** 既存伝票の更新（伝票番号はそのまま）。 */
-	public synchronized void update(Slip slip) {
-		for (int i = 0; i < slips.size(); i++) {
-			if (slips.get(i).getId() == slip.getId()) {
-				slips.set(i, slip);
-				return;
-			}
+		try {
+			// DB・テーブルの自動作成と初回サンプル投入
+			SchemaInit.ensure();
+		} catch (SQLException e) {
+			throw new RuntimeException("データベースの初期化に失敗しました。"
+					+ "XAMPPのMySQL(MariaDB)が起動しているか確認してください: " + e.getMessage(), e);
 		}
 	}
 
-	public synchronized void delete(int id) {
-		slips.removeIf(s -> s.getId() == id);
+	public List<Slip> findAll() {
+		try {
+			return dao.findAllSorted("id", "desc");
+		} catch (SQLException e) {
+			throw new RuntimeException(e);
+		}
 	}
 
-	/** 一覧のサンプルデータ（伝票番号1〜20）を投入する。 */
-	private void seed() {
-		add(makeSlip("2026-04-06", "松本システム開発", "システム開発費", "外注費", "普通預金", "88000"));
-		add(makeSlip("2026-04-12", "山口オートサービス", "車両整備", "車両費", "現金", "54000"));
-		add(makeSlip("2026-04-19", "佐々木エナジー(株)", "電気代", "水道光熱費", "普通預金", "19500"));
-		add(makeSlip("2026-04-21", "山田コンサルティング", "コンサルティング料", "支払手数料", "普通預金", "220000"));
-		add(makeSlip("2026-04-23", "吉田ベンディングサービス", "飲料補充", "福利厚生費", "現金", "8200"));
-		add(makeSlip("2026-04-24", "加藤法律事務所", "顧問料", "支払手数料", "普通預金", "33000"));
-		add(makeSlip("2026-04-30", "小林通信(株)", "通信費", "通信費", "普通預金", "12400"));
-		add(makeSlip("2026-05-08", "中村不動産", "事務所家賃", "地代家賃", "普通預金", "150000"));
-		add(makeSlip("2026-05-15", "山本印刷(株)", "印刷費", "事務用品費", "未払金", "43200"));
-		add(makeSlip("2026-05-16", "伊藤デンタルクリニック", "健康診断", "福利厚生費", "現金", "5500"));
-		add(makeSlip("2026-05-19", "渡辺事務用品", "文房具", "消耗品費", "現金", "9800"));
-		add(makeSlip("2026-05-20", "高橋テック(株)", "PC周辺機器", "消耗品費", "未払金", "62000"));
-		add(makeSlip("2026-05-24", "合同会社マツモト", "消耗品", "消耗品費", "現金", "4500"));
-		add(makeSlip("2026-05-25", "田中ロジスティクス", "配送料", "荷造運賃", "未払金", "120000"));
-		add(makeSlip("2026-05-28", "(有)サトウ商会", "備品", "消耗品費", "現金", "15800"));
-		add(makeSlip("2026-06-02", "鈴木商事", "仕入", "仕入高", "買掛金", "80000"));
-		add(makeSlip("2026-06-05", "✕✕産業(株)", "材料", "仕入高", "現金", "7100"));
-		add(makeSlip("2026-06-10", "△△商店", "事務用品", "消耗品費", "現金", "3000"));
-		add(makeSlip("2026-06-12", "▢▢(株)", "モニター", "消耗品費", "現金", "50000"));
-		add(makeSlip("2026-06-13", "(株)〇〇", "懇親会費", "接待交際費", "未払金", "100000"));
+	public List<Slip> findAllSorted(String key, String order) {
+		try {
+			return dao.findAllSorted(key, order);
+		} catch (SQLException e) {
+			throw new RuntimeException(e);
+		}
 	}
 
-	private Slip makeSlip(String date, String partner, String description,
-			String debitSubject, String creditSubject, String amount) {
-		Slip s = new Slip();
-		s.setDate(date);
-		s.setPartnerName(partner);
-		s.setDescription(description);
-		s.getEntries().add(new Entry(debitSubject, amount, creditSubject, amount));
-		return s;
+	public List<Slip> findFiltered(String q, String key, String order) {
+		try {
+			return dao.findFiltered(q, key, order);
+		} catch (SQLException e) {
+			throw new RuntimeException(e);
+		}
+	}
+
+	public Slip findById(int id) {
+		try {
+			return dao.findById(id);
+		} catch (SQLException e) {
+			throw new RuntimeException(e);
+		}
+	}
+
+	public int add(Slip slip) {
+		try {
+			return dao.insert(slip);
+		} catch (SQLException e) {
+			throw new RuntimeException(e);
+		}
+	}
+
+	public void update(Slip slip) {
+		try {
+			dao.update(slip);
+		} catch (SQLException e) {
+			throw new RuntimeException(e);
+		}
+	}
+
+	public void delete(int id) {
+		try {
+			dao.delete(id);
+		} catch (SQLException e) {
+			throw new RuntimeException(e);
+		}
 	}
 }
