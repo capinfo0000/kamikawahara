@@ -1,5 +1,5 @@
 <%@ page contentType="text/html; charset=UTF-8" %>
-<%@ page import="java.util.*, otameshirenshuu.Slip, otameshirenshuu.SlipStore" %>
+<%@ page import="java.util.*, java.net.URLEncoder, otameshirenshuu.Slip, otameshirenshuu.SlipStore" %>
 <%!
 	private String esc(String v) {
 		if (v == null) return "";
@@ -17,7 +17,16 @@
 		order = "desc";
 	}
 
-	List<Slip> slips = SlipStore.getInstance().findAllSorted(sortKey, order);
+	// 検索キーワード（伝票番号・日付・取引先・購入物を対象）
+	String q = request.getParameter("q");
+	if (q == null) {
+		q = "";
+	}
+
+	List<Slip> slips = SlipStore.getInstance().findFiltered(q, sortKey, order);
+
+	// ソートリンクに検索キーワードを引き継ぐためのURLパラメータ
+	String qParam = q.isEmpty() ? "" : ("&q=" + URLEncoder.encode(q, "UTF-8"));
 
 	// ヘッダーのクリックで昇順⇔降順を切り替える。矢印で現在の並び順を示す。
 	String idNextOrder   = ("id".equals(sortKey)   && "asc".equals(order)) ? "desc" : "asc";
@@ -41,12 +50,18 @@
 
         <!-- 検索と新規登録エリア -->
         <div class="actions-container">
-            <div class="search-area">
+            <!-- 検索フォーム（GETで送信。ソート条件も引き継ぐ） -->
+            <form class="search-area" method="get" action="index.jsp">
             	<div class="search-box">
-                	<input type="text" id="search-input" placeholder="検索（伝票番号、日付、取引先）">
+                	<input type="text" id="search-input" name="q" value="<%= esc(q) %>" placeholder="検索（伝票番号、日付、取引先、購入物）">
             	</div>
-                <button class="search-exec-btn" id="search-trigger-btn">検索</button>
-            </div>
+                <input type="hidden" name="sortKey" value="<%= sortKey %>">
+                <input type="hidden" name="order" value="<%= order %>">
+                <button type="submit" class="search-exec-btn" id="search-trigger-btn">検索</button>
+                <% if (!q.isEmpty()) { %>
+                	<a href="index.jsp?sortKey=<%= sortKey %>&order=<%= order %>" class="search-clear-btn" style="margin-left:8px; font-size:13px; color:#337ab7; text-decoration:none;">クリア</a>
+                <% } %>
+            </form>
 
 			<a href="detail?mode=new" class="register-btn" style="text-decoration: none; display: inline-block;">
     			新規登録
@@ -54,12 +69,16 @@
 
         </div>
 
+        <% if (!q.isEmpty()) { %>
+        <p style="font-size:14px; margin:0 0 10px;">「<%= esc(q) %>」の検索結果：<%= slips.size() %>件</p>
+        <% } %>
+
         <!-- 伝票テーブル -->
         <table class="slip-table">
             <thead>
                 <tr>
-                    <th class="col-id sort-trigger" onclick="location.href='index.jsp?sortKey=id&order=<%= idNextOrder %>'">伝票番号<span class="sort-arrows"><%= idArrow %></span></th>
-                    <th class="col-date sort-trigger" onclick="location.href='index.jsp?sortKey=date&order=<%= dateNextOrder %>'">日付<span class="sort-arrows"><%= dateArrow %></span></th>
+                    <th class="col-id sort-trigger" onclick="location.href='index.jsp?sortKey=id&order=<%= idNextOrder %><%= qParam %>'">伝票番号<span class="sort-arrows"><%= idArrow %></span></th>
+                    <th class="col-date sort-trigger" onclick="location.href='index.jsp?sortKey=date&order=<%= dateNextOrder %><%= qParam %>'">日付<span class="sort-arrows"><%= dateArrow %></span></th>
                     <th class="col-partner">取引先（購入先）</th>
                     <th class="col-description">購入物</th>
                     <th class="col-amount col-amount-th">金額</th>

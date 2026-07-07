@@ -55,17 +55,6 @@
 
     <div class="page-wrapper<%= pageMod %>">
 
-        <!-- 入力エラーメッセージ（サーブレットから渡された場合のみ表示） -->
-        <% if (errors != null && !errors.isEmpty()) { %>
-        <div class="error-banner">
-            <ul>
-                <% for (String err : errors) { %>
-                    <li><%= esc(err) %></li>
-                <% } %>
-            </ul>
-        </div>
-        <% } %>
-
         <!-- 上部ヘッダーエリア（基本情報とボタン） -->
         <div class="header-container">
 
@@ -269,6 +258,23 @@
         </div>
         <% } %>
 
+		<!-- 入力エラーポップアップ（バリデーションエラー時に自動表示） -->
+		<% if (errors != null && !errors.isEmpty()) { %>
+		<div id="error-popup" class="popup-overlay error-layout" style="display:flex;">
+			<div class="error-popup-box">
+				<button type="button" class="popup-close error-close" onclick="closeErrorPopup()">❌</button>
+				<div class="error-mennage-container">
+					<% for (String err : errors) { %>
+						<p class="error-text"><%= esc(err) %></p>
+					<% } %>
+				</div>
+				<div class="popup-btn-group" style="margin-top:20px;">
+					<button type="button" class="popup-btn" onclick="closeErrorPopup()">閉じて修正する</button>
+				</div>
+			</div>
+		</div>
+		<% } %>
+
 		<!-- 編集破棄確認ポップアップ（編集・新規モード） -->
 		<% if (!isView) { %>
 			<div id="leave-popup" class="popup-overlay leave-popup-layout">
@@ -287,6 +293,12 @@
 		<% } %>
 
 <script>
+// エラーポップアップを閉じる（背後の入力内容はそのまま残る）
+function closeErrorPopup() {
+	var p = document.getElementById('error-popup');
+	if (p) p.style.display = 'none';
+}
+
 // 入力行を1行作る（編集・新規モードで「行を追加」に使用）
 function makeRow() {
 	var tr = document.createElement('tr');

@@ -46,6 +46,47 @@ public class SlipStore {
 		return list;
 	}
 
+	/**
+	 * キーワード検索＋ソート結果を返す。
+	 * 伝票番号・日付・取引先・購入物のいずれかにキーワードを含む伝票を対象とする。
+	 * キーワードが空なら全件（ソートのみ）。
+	 */
+	public synchronized List<Slip> findFiltered(String q, String key, String order) {
+		List<Slip> list = findAllSorted(key, order);
+		if (q == null || q.trim().isEmpty()) {
+			return list;
+		}
+		String needle = q.trim().toLowerCase();
+		List<Slip> result = new ArrayList<>();
+		for (Slip s : list) {
+			if (matches(s, needle)) {
+				result.add(s);
+			}
+		}
+		return result;
+	}
+
+	private boolean matches(Slip s, String needle) {
+		// 伝票番号
+		if (String.valueOf(s.getId()).contains(needle)) {
+			return true;
+		}
+		// 日付（yyyy-MM-dd と yyyy/MM/dd の両方で照合）
+		String date = (s.getDate() == null) ? "" : s.getDate().toLowerCase();
+		if (date.contains(needle) || date.replace("-", "/").contains(needle)) {
+			return true;
+		}
+		// 取引先
+		if (s.getPartnerName() != null && s.getPartnerName().toLowerCase().contains(needle)) {
+			return true;
+		}
+		// 購入物
+		if (s.getDescription() != null && s.getDescription().toLowerCase().contains(needle)) {
+			return true;
+		}
+		return false;
+	}
+
 	public synchronized Slip findById(int id) {
 		for (Slip s : slips) {
 			if (s.getId() == id) {
