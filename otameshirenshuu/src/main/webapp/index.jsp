@@ -1,5 +1,30 @@
 <%@ page contentType="text/html; charset=UTF-8" %>
+<%@ page import="java.util.*, otameshirenshuu.Slip, otameshirenshuu.SlipStore" %>
+<%!
+	private String esc(String v) {
+		if (v == null) return "";
+		return v.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\"", "&quot;");
+	}
+%>
+<%
+	// ソート条件（sortKey: id / date, order: asc / desc）。既定は伝票番号の降順（新しい順）。
+	String sortKey = request.getParameter("sortKey");
+	if (!"date".equals(sortKey)) {
+		sortKey = "id";
+	}
+	String order = request.getParameter("order");
+	if (!"asc".equals(order)) {
+		order = "desc";
+	}
 
+	List<Slip> slips = SlipStore.getInstance().findAllSorted(sortKey, order);
+
+	// ヘッダーのクリックで昇順⇔降順を切り替える。矢印で現在の並び順を示す。
+	String idNextOrder   = ("id".equals(sortKey)   && "asc".equals(order)) ? "desc" : "asc";
+	String dateNextOrder = ("date".equals(sortKey) && "asc".equals(order)) ? "desc" : "asc";
+	String idArrow   = "id".equals(sortKey)   ? ("asc".equals(order) ? "▲" : "▼") : "▲▼";
+	String dateArrow = "date".equals(sortKey) ? ("asc".equals(order) ? "▲" : "▼") : "▲▼";
+%>
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -22,7 +47,7 @@
             	</div>
                 <button class="search-exec-btn" id="search-trigger-btn">検索</button>
             </div>
-        	
+
 			<a href="detail?mode=new" class="register-btn" style="text-decoration: none; display: inline-block;">
     			新規登録
 			</a>
@@ -33,8 +58,8 @@
         <table class="slip-table">
             <thead>
                 <tr>
-                    <th class="col-id sort-trigger">伝票番号<span class="sort-arrows">▲▼</span></th>
-                    <th class="col-date sort-trigger">日付<span class="sort-arrows">▲▼</span></th>
+                    <th class="col-id sort-trigger" onclick="location.href='index.jsp?sortKey=id&order=<%= idNextOrder %>'">伝票番号<span class="sort-arrows"><%= idArrow %></span></th>
+                    <th class="col-date sort-trigger" onclick="location.href='index.jsp?sortKey=date&order=<%= dateNextOrder %>'">日付<span class="sort-arrows"><%= dateArrow %></span></th>
                     <th class="col-partner">取引先（購入先）</th>
                     <th class="col-description">購入物</th>
                     <th class="col-amount col-amount-th">金額</th>
@@ -42,200 +67,31 @@
                 </tr>
             </thead>
             <tbody>
-                <!-- 明細データ -->
+                <!-- 明細データ（ストアから取得） -->
+                <% if (slips.isEmpty()) { %>
                 <tr>
-                    <td class="col-id">20</td>
-                    <td class="col-date">2026/06/13</td>
-                    <td class="col-partner">(株)〇〇</td>
-                    <td class="col-description">懇親会費</td>
-                    <td class="col-amount col-amount-td">¥100,000</td>
-                    <td class="col-detail"><a href="detail?mode=view" class="detail-link">明細</a></td>
-                    <td class="col-delete-cell"><button class="btn-list-delete">削除</button></td>
+                    <td colspan="7">伝票がありません。「新規登録」から追加してください。</td>
                 </tr>
+                <% } %>
+                <% for (Slip s : slips) {
+                       String dateSlash = s.getDate().replace("-", "/");
+                %>
                 <tr>
-                    <td class="col-id">19</td>
-                    <td class="col-date">2026/06/12</td>
-                    <td class="col-partner">▢▢(株)</td>
-                    <td class="col-description">モニター</td>
-                    <td class="col-amount col-amount-td">¥50,000</td>
-                    <td class="col-detail"><a href="detail?mode=view" class="detail-link">明細</a></td>
-                    <td class="col-delete-cell"><button class="btn-list-delete">削除</button></td>
+                    <td class="col-id"><%= s.getId() %></td>
+                    <td class="col-date"><%= esc(dateSlash) %></td>
+                    <td class="col-partner"><%= esc(s.getPartnerName()) %></td>
+                    <td class="col-description"><%= esc(s.getDescription()) %></td>
+                    <td class="col-amount col-amount-td">&yen;<%= String.format("%,d", s.getTotal()) %></td>
+                    <td class="col-detail"><a href="detail?mode=view&id=<%= s.getId() %>" class="detail-link">明細</a></td>
+                    <td class="col-delete-cell">
+                        <a href="detail?action=delete&id=<%= s.getId() %>" class="btn-list-delete"
+                           style="text-decoration:none; display:inline-block; padding:2px 10px;"
+                           onclick="return confirm('伝票番号 <%= s.getId() %> を削除しますか？');">削除</a>
+                    </td>
                 </tr>
-                <tr>
-                    <td class="col-id">18</td>
-                    <td class="col-date">2026/06/10</td>
-                    <td class="col-partner">△△商店</td>
-                    <td class="col-description">　</td>
-                    <td class="col-amount col-amount-td">¥3,000</td>
-                    <td class="col-detail"><a href="detail?mode=view" class="detail-link">明細</a></td>
-                    <td class="col-delete-cell"><button class="btn-list-delete">削除</button></td>
-                </tr>
-                <tr>
-                    <td class="col-id">17</td>
-                    <td class="col-date">2026/06/05</td>
-                    <td class="col-partner">✕✕産業(株)</td>
-                    <td class="col-description">　</td>
-                    <td class="col-amount col-amount-td">¥7,100</td>
-                    <td class="col-detail"><a href="detail?mode=view" class="detail-link">明細</a></td>
-                    <td class="col-delete-cell"><button class="btn-list-delete">削除</button></td>
-                </tr>
-                <tr>
-                    <td class="col-id">16</td>
-                    <td class="col-date">2026/06/02</td>
-                    <td class="col-partner">鈴木商事</td>
-                    <td class="col-description"></td>
-                    <td class="col-amount col-amount-td">¥80,000</td>
-                    <td class="col-detail"><a href="detail?mode=view" class="detail-link">明細</a></td>
-                    <td class="col-delete-cell"><button class="btn-list-delete">削除</button></td>
-                </tr>
-                <tr>
-                    <td class="col-id">15</td>
-                    <td class="col-date">2026/05/28</td>
-                    <td class="col-partner">(有)サトウ商会</td>
-                    <td class="col-description"></td>
-                    <td class="col-amount col-amount-td">¥15,800</td>
-                    <td class="col-detail"><a href="detail?mode=view" class="detail-link">明細</a></td>
-                    <td class="col-delete-cell"><button class="btn-list-delete">削除</button></td>
-                </tr>
-                <tr>
-                    <td class="col-id">14</td>
-                    <td class="col-date">2026/05/25</td>
-                    <td class="col-partner">田中ロジスティクス</td>
-                    <td class="col-description"></td>
-                    <td class="col-amount col-amount-td">¥120,000</td>
-                    <td class="col-detail"><a href="detail?mode=view" class="detail-link">明細</a></td>
-                    <td class="col-delete-cell"><button class="btn-list-delete">削除</button></td>
-                </tr>
-                <tr>
-                    <td class="col-id">13</td>
-                    <td class="col-date">2026/05/24</td>
-                    <td class="col-partner">合同会社マツモト</td>
-                    <td class="col-description"></td>
-                    <td class="col-amount col-amount-td">¥4,500</td>
-                    <td class="col-detail"><a href="detail?mode=view" class="detail-link">明細</a></td>
-                    <td class="col-delete-cell"><button class="btn-list-delete">削除</button></td>
-                </tr>
-                <tr>
-                    <td class="col-id">12</td>
-                    <td class="col-date">2026/05/20</td>
-                    <td class="col-partner">高橋テック(株)</td>
-                    <td class="col-description"></td>
-                    <td class="col-amount col-amount-td">¥62,000</td>
-                    <td class="col-detail"><a href="detail?mode=view" class="detail-link">明細</a></td>
-                    <td class="col-delete-cell"><button class="btn-list-delete">削除</button></td>
-                </tr>
-                <tr>
-                    <td class="col-id">11</td>
-                    <td class="col-date">2026/05/19</td>
-                    <td class="col-partner">渡辺事務用品</td>
-                    <td class="col-description">　</td>
-                    <td class="col-amount col-amount-td">¥9,800</td>
-                    <td class="col-detail"><a href="detail?mode=view" class="detail-link">明細</a></td>
-                    <td class="col-delete-cell"><button class="btn-list-delete">削除</button></td>
-                </tr>
-                <tr>
-                    <td class="col-id">10</td>
-                    <td class="col-date">2026/05/16</td>
-                    <td class="col-partner">伊藤デンタルクリニック</td>
-                    <td class="col-description"></td>
-                    <td class="col-amount col-amount-td">¥5,500</td>
-                    <td class="col-detail"><a href="detail?mode=view" class="detail-link">明細</a></td>
-                    <td class="col-delete-cell"><button class="btn-list-delete">削除</button></td>
-                </tr>
-                <tr>
-                    <td class="col-id">9</td>
-                    <td class="col-date">2026/05/15</td>
-                    <td class="col-partner">山本印刷(株)</td>
-                    <td class="col-description"></td>
-                    <td class="col-amount col-amount-td">¥43,200</td>
-                    <td class="col-detail"><a href="detail?mode=view" class="detail-link">明細</a></td>
-                    <td class="col-delete-cell"><button class="btn-list-delete">削除</button></td>
-                </tr>
-                <tr>
-                    <td class="col-id">8</td>
-                    <td class="col-date">2026/05/08</td>
-                    <td class="col-partner">中村不動産</td>
-                    <td class="col-description">　</td>
-                    <td class="col-amount col-amount-td">¥150,000</td>
-                    <td class="col-detail"><a href="detail?mode=view" class="detail-link">明細</a></td>
-                    <td class="col-delete-cell"><button class="btn-list-delete">削除</button></td>
-                </tr>
-                <tr>
-                    <td class="col-id">7</td>
-                    <td class="col-date">2026/04/30</td>
-                    <td class="col-partner">小林通信(株)</td>
-                    <td class="col-description">　</td>
-                    <td class="col-amount col-amount-td">¥12,400</td>
-                    <td class="col-detail"><a href="detail?mode=view" class="detail-link">明細</a></td>
-                    <td class="col-delete-cell"><button class="btn-list-delete">削除</button></td>
-                </tr>
-                <tr>
-                    <td class="col-id">6</td>
-                    <td class="col-date">2026/04/24</td>
-                    <td class="col-partner">加藤法律事務所</td>
-                    <td class="col-description"></td>
-                    <td class="col-amount col-amount-td">¥33,000</td>
-                    <td class="col-detail"><a href="detail?mode=view" class="detail-link">明細</a></td>
-                    <td class="col-delete-cell"><button class="btn-list-delete">削除</button></td>
-                </tr>
-                <tr>
-                    <td class="col-id">5</td>
-                    <td class="col-date">2026/04/23</td>
-                    <td class="col-partner">吉田ベンディングサービス</td>
-                    <td class="col-description">　</td>
-                    <td class="col-amount col-amount-td">¥8,200</td>
-                    <td class="col-detail"><a href="detail?mode=view" class="detail-link">明細</a></td>
-                    <td class="col-delete-cell"><button class="btn-list-delete">削除</button></td>
-                </tr>
-                <tr>
-                    <td class="col-id">4</td>
-                    <td class="col-date">2026/04/21</td>
-                    <td class="col-partner">山田コンサルティング</td>
-                    <td class="col-description"></td>
-                    <td class="col-amount col-amount-td">¥220,000</td>
-                    <td class="col-detail"><a href="detail?mode=view" class="detail-link">明細</a></td>
-                    <td class="col-delete-cell"><button class="btn-list-delete">削除</button></td>
-                </tr>
-                <tr>
-                    <td class="col-id">3</td>
-                    <td class="col-date">2026/04/19</td>
-                    <td class="col-partner">佐々木エナジー(株)</td>
-                    <td class="col-description"></td>
-                    <td class="col-amount col-amount-td">¥19,500</td>
-                    <td class="col-detail"><a href="detail?mode=view" class="detail-link">明細</a></td>
-                    <td class="col-delete-cell"><button class="btn-list-delete">削除</button></td>
-                </tr>
-                <tr>
-                    <td class="col-id">2</td>
-                    <td class="col-date">2026/04/12</td>
-                    <td class="col-partner">山口オートサービス</td>
-                    <td class="col-description"> </td>
-                    <td class="col-amount col-amount-td">¥54,000</td>
-                    <td class="col-detail"><a href="detail?mode=view" class="detail-link">明細</a></td>
-                    <td class="col-delete-cell"><button class="btn-list-delete">削除</button></td>
-                </tr>
-                <tr>
-                    <td class="col-id">1</td>
-                    <td class="col-date">2026/04/06</td>
-                    <td class="col-partner">松本システム開発</td>
-                    <td class="col-description"> </td>
-                    <td class="col-amount col-amount-td">¥88,000</td>
-                    <td class="col-detail"><a href="detail?mode=view" class="detail-link">明細</a></td>
-                    <td class="col-delete-cell"><button class="btn-list-delete">削除</button></td>
-                </tr>
+                <% } %>
             </tbody>
         </table>
-    </div>
-    
-    <div class="popup-overlay delete-layout">
-            <div class="delete-popup-box">
-                <button class="popup-close delete-popup-close">❌</button>
-                <p class="popup-title">この伝票を<span class="text-danger">削除</span>しますか？</p>
-                <div class="popup-btn-group">
-                    <button class="popup-btn btn-yes">はい</button>
-                    <button class="popup-btn btn-no">いいえ</button>
-                </div>
-            </div>
     </div>
 
 </body>

@@ -636,3 +636,28 @@ div.delete-layout:target {
 	margin: 0;
 	padding-left: 20px;
 }
+
+/* 明細行の「操作」列（編集・新規モードの行削除ボタン） */
+.journal-table th.col-op,
+.journal-table td.col-op{
+	width: 60px;
+	text-align: center;
+}
+
+.btn-row-delete{
+	background: #fff;
+	border: 1px solid #d9534f;
+	color: #d9534f;
+	border-radius: 4px;
+	width: 28px;
+	height: 28px;
+	line-height: 1;
+	font-size: 16px;
+	cursor: pointer;
+	transition: all 0.2s;
+}
+
+.btn-row-delete:hover{
+	background: #d9534f;
+	color: #fff;
+}

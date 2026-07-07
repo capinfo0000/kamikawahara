@@ -1,9 +1,47 @@
-
-
 <%@ page contentType="text/html; charset=UTF-8" %>
+<%@ page import="java.util.*, otameshirenshuu.Entry" %>
+<%!
+	// 数字文字列を3桁区切りに整形（空なら空文字）
+	private String fmt(String v) {
+		if (v == null) return "";
+		String digits = v.replaceAll("[^0-9]", "");
+		if (digits.isEmpty()) return "";
+		return String.format("%,d", Long.parseLong(digits));
+	}
+	private String esc(String v) {
+		if (v == null) return "";
+		return v.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\"", "&quot;");
+	}
+%>
+<%
+	String currentMode = (String) request.getAttribute("currentMode");
+	if (currentMode == null) currentMode = "view";
+	boolean isView = "view".equals(currentMode);
+	boolean isNew  = "new".equals(currentMode);
+	boolean isEdit = "edit".equals(currentMode);
 
+	Integer slipId = (Integer) request.getAttribute("slipId");
 
+	String slipDate = (String) request.getAttribute("slipDate");
+	if (slipDate == null) slipDate = "";
+	String slipDateSlash = slipDate.replace("-", "/");
 
+	String partnerName = (String) request.getAttribute("partnerName");
+	if (partnerName == null) partnerName = "";
+
+	String description = (String) request.getAttribute("description");
+	if (description == null) description = "";
+
+	String note = (String) request.getAttribute("note");
+	if (note == null) note = "";
+
+	List<Entry> detailList = (List<Entry>) request.getAttribute("detailList");
+	if (detailList == null) detailList = new ArrayList<>();
+
+	List<String> errors = (List<String>) request.getAttribute("errors");
+
+	String pageMod = isNew ? " is-new" : (isEdit ? " is-edit" : "");
+%>
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -15,72 +53,14 @@
 </head>
 <body>
 
-<%
-    // サーブレットからのデータを受け取る
-    String currentMode = (String) request.getAttribute("currentMode");
-    if (currentMode == null) {
-        currentMode = "view";
-    }
-    
-    String description = (String) request.getAttribute("description");
-    if (description == null) {
-        description = "";
-    }
-    
-    String slipId = (String) request.getAttribute("slipId");
-    if (slipId == null) {
-    	slipId = "";
-    }
-    
-    String slipDate = (String) request.getAttribute("slipDate");
-    if (slipDate == null) {
-    	slipDate = "";
-    }
-
-    String partnerName = (String) request.getAttribute("partnerName");
-    if (partnerName == null) {
-    	partnerName = "";
-    }
-    
-    String debitSubject = (String) request.getAttribute("debitSubject");
-    if (debitSubject == null) { 
-    	debitSubject = ""; 
-    }
-
-    String debitAmount = (String) request.getAttribute("debitAmount");
-    if (debitAmount == null) { 
-    	debitAmount = ""; 
-    }
-
-    String creditSubject = (String) request.getAttribute("creditSubject");
-    if (creditSubject == null) { 
-    	creditSubject = ""; 
-    }
-
-    String creditAmount = (String) request.getAttribute("creditAmount");
-    if (creditAmount == null) { 
-    	creditAmount = ""; 
-    }
-    
-    String note = (String) request.getAttribute("note");
-    if (note == null) {
-    	note = "";
-    }
-    
-%>
-
-    <div class="page-wrapper">
+    <div class="page-wrapper<%= pageMod %>">
 
         <!-- 入力エラーメッセージ（サーブレットから渡された場合のみ表示） -->
-        <%
-            java.util.List<String> errors =
-                (java.util.List<String>) request.getAttribute("errors");
-            if (errors != null && !errors.isEmpty()) {
-        %>
+        <% if (errors != null && !errors.isEmpty()) { %>
         <div class="error-banner">
             <ul>
                 <% for (String err : errors) { %>
-                    <li><%= err %></li>
+                    <li><%= esc(err) %></li>
                 <% } %>
             </ul>
         </div>
@@ -88,100 +68,77 @@
 
         <!-- 上部ヘッダーエリア（基本情報とボタン） -->
         <div class="header-container">
-            
+
             <!-- 「伝票一覧に戻る」ボタン -->
             <div class="back-actions-group">
-            	<% if ("view".equals(currentMode)) { %>
-            		<!-- 閲覧モードの時は、そのまま一覧画面に戻る -->
+            	<% if (isView) { %>
 					<a href="index.jsp" class="btn-back">←伝票一覧</a>
-				<% } else if ("edit".equals(currentMode) || "new".equals(currentMode)) { %>
-					<!-- 編集・新規モードの時は、一覧に戻らず、ポップアップを開く -->
+				<% } else { %>
+					<!-- 編集・新規モードの時は、一覧に戻らずポップアップを開く -->
 					<a href="#leave-popup" class="btn-back">←伝票一覧</a>
 				<% } %>
-				
-			<!-- 編集モード・新規登録モードの時のみ入力欄全体をformタグで囲む -->
-				<% if ("edit".equals(currentMode) || "new".equals(currentMode)) { %>
-					<form action="detail" method="POST">
+
+			<!-- 編集・新規登録モードの時のみ入力欄全体をformタグで囲む -->
+				<% if (!isView) { %>
+					<form action="detail" method="POST" id="slip-form">
+					<% if (isEdit && slipId != null) { %>
+						<input type="hidden" name="id" value="<%= slipId %>">
+					<% } %>
 				<% } %>
-            
+
             <!-- 日付と伝票番号の縦並びエリア -->
             	<div class="meta-info-group">
-					
+
 					<!-- 日付 -->
                 	<div class="header-item item-date">
-                    	日付 
-                    	<% if ("view".equals(currentMode)) { %>
-                    	<!-- 閲覧用 -->
-                   	 	<span class="underline-text"><%= slipDate %></span>
-               			<% } %>
-                
-               			<% if ("edit".equals(currentMode) || "new".equals(currentMode)) { %>
-                    	<!-- 編集用：日付選択カレンダー -->
-               	    		 <input type="date" name="slipDate" class="header-input" value="<%= slipDate %>">
+                    	日付
+                    	<% if (isView) { %>
+                   	 		<span class="underline-text"><%= esc(slipDateSlash) %></span>
+               			<% } else { %>
+               	    		<input type="date" name="slipDate" class="header-input" value="<%= esc(slipDate) %>">
                			<% } %>
                     </div>
-                    
+
                     <!-- 伝票番号 -->
                 	<div class="header-item item-id">
                     	伝票番号
-                    	<% if (!"new".equals(currentMode)) { %>
-                    		<!-- 閲覧・編集用：既存の番号を表示 -->
+                    	<% if (!isNew && slipId != null) { %>
                     		<span class="underline-text"><%= slipId %></span>
-                    	<% } %>
-                    	
-                    	<% if ( "new".equals(currentMode)) { %>
-                    		<!-- 新規登録用：番号がないのでハイフンを表示 -->
+                    	<% } else { %>
+                    		<!-- 新規登録は採番前なのでハイフン -->
                     		<span class="underline-text">-</span>
                     	<% } %>
                		</div>
             	</div>
             </div>
-            
+
             <!-- 取引先 -->
 	            <div class="header-item item-partner">
-	                取引先 
-	                <% if ("view".equals(currentMode)) { %>
-	                	<!-- 閲覧用 -->
-	                	<span class="underline-text partner-name"><%= partnerName %></span>
-	                <% } %>
-	                
-	                <% if ("edit".equals(currentMode) || "new".equals(currentMode)) { %>
-	                	<!-- 編集用：テキスト入力欄 -->
-	                	<input type="text" name="partnerName" class="header-input partner-input" value="<%= partnerName %>">
+	                取引先
+	                <% if (isView) { %>
+	                	<span class="underline-text partner-name"><%= esc(partnerName) %></span>
+	                <% } else { %>
+	                	<input type="text" name="partnerName" class="header-input partner-input" value="<%= esc(partnerName) %>">
 	                <% } %>
 	            </div>
-	            
-	        <!-- 購入物 -->
-	        	<div class="header-item item-description">
-	        		購入物
-	        		
-	        		<% if ("view".equals(currentMode)) { %>
-	        		<!-- 閲覧用 -->
-	        			<span class="underline-text description-text"><%= description %></span>
-	        		<% } %>
-	        		
-	        		
-	        		<% if ("edit".equals(currentMode) || "new".equals(currentMode)) { %>
-	        		<!-- 編集用・テキスト入力欄 -->
-	        			<input type="text" name="description" class="header-input description-input" value="<%= description %>">
-	        		<% } %>
-	        		
-	        	</div>
-            
+
+        <!-- 購入物 -->
+        	<div class="header-item item-description">
+        		購入物
+        		<% if (isView) { %>
+        			<span class="underline-text description-text"><%= esc(description) %></span>
+        		<% } else { %>
+        			<input type="text" name="description" class="header-input description-input" value="<%= esc(description) %>">
+        		<% } %>
+        	</div>
+
             <!-- 右上ボタンエリア -->
 	            <div class="button-group">
-	            <% if ("view".equals(currentMode)) { %>
-	            	<!-- 閲覧モードの時に見えるボタン -->
-	                <a href="detail?mode=edit" class="btn btn-edit">編集</a>
+	            <% if (isView) { %>
+	                <a href="detail?mode=edit&id=<%= slipId %>" class="btn btn-edit">編集</a>
 	                <a href="#delete-popup" class="btn btn-delete">削除</a>
-	            <% } %>
-	           
-	               
-	            <%  if ("edit".equals(currentMode) || "new".equals(currentMode)) { %>
-	                <!-- 編集モードの時に見えるボタン -->
-	               
-	                	<button type="submit" class="btn btn-save">登録</button>
-	                
+	            <% } else { %>
+	                <button type="submit" class="btn btn-save">登録</button>
 	            <% } %>
 	            </div>
         </div>
@@ -194,197 +151,191 @@
                     <th class="col-amount">金額</th>
                     <th class="col-subject">貸方勘定科目</th>
                     <th class="col-amount">金額</th>
+                    <% if (!isView) { %><th class="col-op">操作</th><% } %>
                 </tr>
             </thead>
-            <tbody>
-            
+            <tbody id="entry-tbody">
+
             	<%
-            	// サーブレットぁら送られてきた大きな箱（明細リスト）を受け取る
-            	java.util.List<java.util.Map<String, String>> detailList =
-            		(java.util.List<java.util.Map<String, String>>) request.getAttribute("detailList");
-            	
-            	if (detailList == null) {
-            		detailList = new java.util.ArrayList<>();
-            	}
-
-            	//借方・貸方の合計金額を集計する
-            	int debitTotal = 0;
-            	int creditTotal = 0;
-
-            	//箱に入っているデータの数だけtrを自動で繰り返す
-            	for (java.util.Map<String, String> row : detailList) {
-
-            		String dSub = row.getOrDefault("debitSubject", "");
-            		String dAmt = row.getOrDefault("debitAmount", "");
-            		String cSub = row.getOrDefault("creditSubject", "");
-            		String cAmt = row.getOrDefault("creditAmount", "");
-
-            		//金額文字列から数字以外を除去して合計に加算
-            		String cleanDAmt = dAmt.replaceAll("[^0-9]", "");
-            		String cleanCAmt = cAmt.replaceAll("[^0-9]", "");
-            		if (!cleanDAmt.isEmpty()) {
-            			debitTotal += Integer.parseInt(cleanDAmt);
-            		}
-            		if (!cleanCAmt.isEmpty()) {
-            			creditTotal += Integer.parseInt(cleanCAmt);
-            		}
+            		// 登録されている明細の数だけ行を表示し、あわせて合計を集計する
+            		int debitTotal = 0;
+            		int creditTotal = 0;
+            		for (Entry en : detailList) {
+            			String dSub = en.getDebitSubject();
+            			String dAmt = en.getDebitAmount();
+            			String cSub = en.getCreditSubject();
+            			String cAmt = en.getCreditAmount();
+            			debitTotal  += en.getDebitValue();
+            			creditTotal += en.getCreditValue();
             	%>
-            
-            
-	                <tr>
+	                <tr class="entry-row">
 						<!-- 借方勘定科目 -->
 	                    <td class="col-subject">
-	                    	<% if ("view".equals(currentMode)) { %>
-	                    		<!-- 閲覧モードの時 -->
-								<span class="view-mode"><%= dSub %></span>
+	                    	<% if (isView) { %>
+								<span class="view-mode"><%= esc(dSub) %></span>
 							<% } else { %>
-								<!-- 編集モード、新規登録モードの時 -->
-								<input type="text" name="debitSubject" class="input-field" value="<%= dSub %>">
+								<input type="text" name="debitSubject" class="input-field" value="<%= esc(dSub) %>">
 							<% } %>
 						</td>
-						
+
 						<!-- 借方金額 -->
 	                    <td class="col-amount">
-	                    	<% if ("view".equals(currentMode)) { %>
-								<span class="view-mode">&yen;<%= dAmt %></span>
+	                    	<% if (isView) { %>
+								<span class="view-mode">&yen;<%= fmt(dAmt) %></span>
 							<% } else { %>
-								<input type="text" name="debitAmount" class="input-field text-right" value="<%= dAmt %>">
+								<input type="text" name="debitAmount" class="input-field text-right" value="<%= fmt(dAmt) %>" oninput="recompute()">
 							<% } %>
 						</td>
-						
+
 						<!-- 貸方勘定科目 -->
 	                    <td class="col-subject">
-	                    	<% if ("view".equals(currentMode)) { %>
-								<span class="view-mode"><%= cSub %></span>
+	                    	<% if (isView) { %>
+								<span class="view-mode"><%= esc(cSub) %></span>
 							<% } else { %>
-								<input type="text" name="creditSubject" class="input-field" value="<%= cSub %>">
+								<input type="text" name="creditSubject" class="input-field" value="<%= esc(cSub) %>">
 							<% } %>
 						</td>
-						
+
 						<!-- 貸方金額 -->
 	                    <td class="col-amount">
-	                    	<% if ("view".equals(currentMode)) { %>
-								<span class="view-mode">&yen;<%= cAmt %></span>
+	                    	<% if (isView) { %>
+								<span class="view-mode">&yen;<%= fmt(cAmt) %></span>
 							<% } else { %>
-								<input type="text" name="creditAmount" class="input-field text-right" value="<%= cAmt %>">
+								<input type="text" name="creditAmount" class="input-field text-right" value="<%= fmt(cAmt) %>" oninput="recompute()">
 							<% } %>
 						</td>
+
+						<!-- 行削除（編集・新規モードのみ） -->
+						<% if (!isView) { %>
+						<td class="col-op">
+							<button type="button" class="btn-row-delete" onclick="removeRow(this)" title="この行を削除">×</button>
+						</td>
+						<% } %>
 	                </tr>
-	                
                 <% } %>
-                
-	                
-	                
-	                <!-- 合計行 -->
-	                <tr class="total-row">
 
-						<!-- 借方合計金額エリア -->
-	                    <td class="col-subject">合計</td>
-	                    <td class="col-amount-total">
-							<!-- 明細から集計した借方合計を表示 -->
-							<span class="<%= "view".equals(currentMode) ? "view-mode" : "edit-mode" %>">&yen;<%= String.format("%,d", debitTotal) %></span>
-						</td>
+                <!-- 合計行 -->
+                <tr class="total-row" id="total-row">
+					<!-- 借方合計金額エリア -->
+                    <td class="col-subject">合計</td>
+                    <td class="col-amount-total">
+						<span id="debit-total" class="<%= isView ? "view-mode" : "edit-mode" %>">&yen;<%= String.format("%,d", debitTotal) %></span>
+					</td>
 
-						<!-- 貸方合計金額エリア -->
-	                    <td class="col-subject">合計</td>
-	                    <td class="col-amount-total">
-							<!-- 明細から集計した貸方合計を表示 -->
-							<span class="<%= "view".equals(currentMode) ? "view-mode" : "edit-mode" %>">&yen;<%= String.format("%,d", creditTotal) %></span>
-						</td>
-	                </tr>
-	                
+					<!-- 貸方合計金額エリア -->
+                    <td class="col-subject">合計</td>
+                    <td class="col-amount-total">
+						<span id="credit-total" class="<%= isView ? "view-mode" : "edit-mode" %>">&yen;<%= String.format("%,d", creditTotal) %></span>
+					</td>
+					<% if (!isView) { %><td class="col-op"></td><% } %>
+                </tr>
+
             </tbody>
         </table>
-        
-        <!-- 行追加ボタンエリア（貸方の合計金額の下に配置） -->
-        <% if ("edit".equals(currentMode) || "new".equals(currentMode)) { %>
+
+        <!-- 行追加ボタンエリア（編集・新規モードのみ） -->
+        <% if (!isView) { %>
         	<div class="add-row-container">
-            	<button type="button" class="btn-add-row">＋ 行を追加</button>
-        	</div> 
+            	<button type="button" class="btn-add-row" onclick="addRow()">＋ 行を追加</button>
+        	</div>
         <% } %>
 
-         <!-- 備考エリア -->
+         <!-- 備考エリア（自由入力・デフォルト3行） -->
         <div class="note-container">
             <label for="note-text" class="note-label">備考：</label>
-            
-            <% if ("view".equals(currentMode)) { %>
-            	<!-- 閲覧用 -->
-            	<textarea id="note-text" class="note-textarea view-mode" rows="3" readonly><%= note %></textarea>
-            <% } %>
-            
-            <% if ("edit".equals(currentMode) || "new".equals(currentMode)) { %>
-            	<!-- 編集用 -->
-            	<textarea id="note-text-edit" textarea name="note" class="note-textarea edit-mode" rows="3"><%= note %></textarea>
+            <% if (isView) { %>
+            	<textarea id="note-text" class="note-textarea view-mode" rows="3" readonly><%= esc(note) %></textarea>
+            <% } else { %>
+            	<textarea id="note-text-edit" name="note" class="note-textarea edit-mode" rows="3"><%= esc(note) %></textarea>
             <% } %>
         </div>
-        
-        <% if ("edit".equals(currentMode) || "new".equals(currentMode)) { %>
+
+        <% if (!isView) { %>
         	</form>
         <% } %>
       </div>
 
-        <!-- 削除確認ポップアップ（閲覧・編集共通） -->
-        <% if ("view".equals(currentMode)) { %>
+        <!-- 削除確認ポップアップ（閲覧モード） -->
+        <% if (isView && slipId != null) { %>
         <div id="delete-popup" class="popup-overlay delete-layout">
             <div class="delete-popup-box">
-            
-                <a href="detail?mode=view" class="popup-close delete-popup-close" style="text-decoraion: none;">❌</a>
-                
-                <p class="popup-title"><span class="text-danger">削除</span>しますか？</p>
-                
+                <a href="detail?mode=view&id=<%= slipId %>" class="popup-close delete-popup-close">❌</a>
+                <p class="popup-title">この伝票を<span class="text-danger">削除</span>しますか？</p>
                 <div class="popup-btn-group">
-                    <a href="index.jsp" class="popup-btn btn-yes">はい</a>
-                    <a href="detail?mode=view" class="popup-btn">いいえ</a>
+                    <a href="detail?action=delete&id=<%= slipId %>" class="popup-btn btn-yes">はい</a>
+                    <a href="detail?mode=view&id=<%= slipId %>" class="popup-btn">いいえ</a>
                 </div>
             </div>
         </div>
         <% } %>
-        
-        <!-- 金額不一致エラーポップアップ（編集モード専用） -->
-        <div class="popup-overlay error-layout">
-			<div class="error-popup-box">
-				<button class="popup-close error-close">❌</button>
-				<div class="error-mennage-container">
-					<p class="error-text">借方と貸方の合計金額が一致しないため</p>
-					<p class="error-text">登録できません。</p>
-				</div>
-			</div>
-		</div>
-		
-		<!-- 登録確認ポップアップ（編集モード専用） -->
-		<div class="popup-overlay register-layout">
-			<div class="register-popup-box">
-				<button class="popup-close">❌</button>
-				<p class="popup-title"><span class="text-primary">登録</span>しますか？</p>
-				<div class="popup-btn-group">
-					<button class="popup-btn">はい</button>
-					<button class="popup-btn">いいえ</button>
-				</div>
-			</div>
-		</div>
-		
-		<!-- 編集破棄確認ポップアップ -->
-		<% if ("edit".equals(currentMode) || "new".equals(currentMode)) { %>
-			<!-- 編集・新規モードの時のみポップアップを表示させる -->
+
+		<!-- 編集破棄確認ポップアップ（編集・新規モード） -->
+		<% if (!isView) { %>
 			<div id="leave-popup" class="popup-overlay leave-popup-layout">
 				<div class="leave-popup-box">
-					<a href="detail?mode=<%= currentMode %>" class="popup-close">❌</a>
-					
+					<a href="#" class="popup-close">❌</a>
 					<div class="leave-massage-container">
 						<p class="leave-text">編集中の内容は削除されます。</p>
 						<p class="leave-text">よろしいですか？</p>
 					</div>
-					
 					<div class="popup-btn-group">
 						<a href="index.jsp" class="popup-btn btn-ok-link">はい</a>
-						<a href="detail?mode=<%= currentMode %>" class="popup-btn">いいえ</a>
+						<a href="#" class="popup-btn">いいえ</a>
 					</div>
-					
 				</div>
 			</div>
 		<% } %>
 
-    
+<script>
+// 入力行を1行作る（編集・新規モードで「行を追加」に使用）
+function makeRow() {
+	var tr = document.createElement('tr');
+	tr.className = 'entry-row';
+	tr.innerHTML =
+		'<td class="col-subject"><input type="text" name="debitSubject" class="input-field"></td>' +
+		'<td class="col-amount"><input type="text" name="debitAmount" class="input-field text-right" oninput="recompute()"></td>' +
+		'<td class="col-subject"><input type="text" name="creditSubject" class="input-field"></td>' +
+		'<td class="col-amount"><input type="text" name="creditAmount" class="input-field text-right" oninput="recompute()"></td>' +
+		'<td class="col-op"><button type="button" class="btn-row-delete" onclick="removeRow(this)" title="この行を削除">×</button></td>';
+	return tr;
+}
+
+// 行を追加（合計行の直前に挿入）
+function addRow() {
+	var tbody = document.getElementById('entry-tbody');
+	var totalRow = document.getElementById('total-row');
+	tbody.insertBefore(makeRow(), totalRow);
+}
+
+// 行を削除
+function removeRow(btn) {
+	var tr = btn.parentNode.parentNode;
+	tr.parentNode.removeChild(tr);
+	recompute();
+}
+
+function toNum(v) {
+	v = (v || '').replace(/[^0-9]/g, '');
+	return v === '' ? 0 : parseInt(v, 10);
+}
+
+// 借方・貸方の合計を再計算して合計行に反映
+function recompute() {
+	var rows = document.querySelectorAll('#entry-tbody .entry-row');
+	var d = 0, c = 0;
+	rows.forEach(function (r) {
+		var ins = r.querySelectorAll('input');
+		if (ins.length >= 4) {
+			d += toNum(ins[1].value);
+			c += toNum(ins[3].value);
+		}
+	});
+	var de = document.getElementById('debit-total');
+	var ce = document.getElementById('credit-total');
+	if (de) de.textContent = '¥' + d.toLocaleString();
+	if (ce) ce.textContent = '¥' + c.toLocaleString();
+}
+</script>
 
 </body>
 </html>
