@@ -126,7 +126,7 @@
                     <td class="col-amount col-amount-td">&yen;<%= String.format("%,d", s.getTotal()) %></td>
                     <td class="col-detail"><a href="detail?mode=view&id=<%= s.getId() %>" class="detail-link">明細</a></td>
                     <td class="col-delete-cell">
-                        <a href="detail?action=delete&id=<%= s.getId() %>" class="btn-list-delete"
+                        <a href="detail?action=delete&id=<%= s.getId() %>&sortKey=<%= sortKey %>&order=<%= order %>&page=<%= pageNo %><%= qParam %>" class="btn-list-delete"
                            style="text-decoration:none; display:inline-block; padding:2px 10px;"
                            onclick="return confirm('伝票番号 <%= s.getId() %> を削除しますか？');">削除</a>
                     </td>

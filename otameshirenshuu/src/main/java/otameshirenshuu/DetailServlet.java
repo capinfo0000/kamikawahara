@@ -1,6 +1,7 @@
 package otameshirenshuu;
 
 import java.io.IOException;
+import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -26,7 +27,8 @@ public class DetailServlet extends HttpServlet {
 			if (id != null) {
 				store.delete(id);
 			}
-			response.sendRedirect(request.getContextPath() + "/index.jsp");
+			// 削除後は、元の一覧（同じページ・並び順・検索条件）へ戻す
+			response.sendRedirect(request.getContextPath() + "/index.jsp" + listQuery(request));
 			return;
 		}
 
@@ -190,6 +192,23 @@ public class DetailServlet extends HttpServlet {
 			list.add(new Entry());
 		}
 		return list;
+	}
+
+	/** 一覧に戻る際のクエリ（並び順・ページ・検索キーワード）を組み立てる。 */
+	private String listQuery(HttpServletRequest request) throws IOException {
+		StringBuilder sb = new StringBuilder();
+		appendParam(sb, "sortKey", request.getParameter("sortKey"));
+		appendParam(sb, "order", request.getParameter("order"));
+		appendParam(sb, "page", request.getParameter("page"));
+		appendParam(sb, "q", request.getParameter("q"));
+		return (sb.length() == 0) ? "" : "?" + sb.substring(1);
+	}
+
+	private void appendParam(StringBuilder sb, String key, String value) throws IOException {
+		if (value == null || value.isEmpty()) {
+			return;
+		}
+		sb.append("&").append(key).append("=").append(URLEncoder.encode(value, "UTF-8"));
 	}
 
 	private static String at(String[] arr, int i) {
