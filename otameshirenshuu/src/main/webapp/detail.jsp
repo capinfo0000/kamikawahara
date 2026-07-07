@@ -8,6 +8,11 @@
 		if (digits.isEmpty()) return "";
 		return String.format("%,d", Long.parseLong(digits));
 	}
+	// 金額が空のときは ¥ を付けない（閲覧モード用）
+	private String yen(String v) {
+		String f = fmt(v);
+		return f.isEmpty() ? "" : "&yen;" + f;
+	}
 	private String esc(String v) {
 		if (v == null) return "";
 		return v.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\"", "&quot;");
@@ -172,7 +177,7 @@
 						<!-- 借方金額 -->
 	                    <td class="col-amount">
 	                    	<% if (isView) { %>
-								<span class="view-mode">&yen;<%= fmt(dAmt) %></span>
+								<span class="view-mode"><%= yen(dAmt) %></span>
 							<% } else { %>
 								<input type="text" name="debitAmount" class="input-field text-right" value="<%= fmt(dAmt) %>" oninput="recompute()">
 							<% } %>
@@ -190,7 +195,7 @@
 						<!-- 貸方金額 -->
 	                    <td class="col-amount">
 	                    	<% if (isView) { %>
-								<span class="view-mode">&yen;<%= fmt(cAmt) %></span>
+								<span class="view-mode"><%= yen(cAmt) %></span>
 							<% } else { %>
 								<input type="text" name="creditAmount" class="input-field text-right" value="<%= fmt(cAmt) %>" oninput="recompute()">
 							<% } %>
