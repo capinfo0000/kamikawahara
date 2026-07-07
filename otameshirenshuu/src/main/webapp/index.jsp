@@ -33,6 +33,29 @@
 	String dateNextOrder = ("date".equals(sortKey) && "asc".equals(order)) ? "desc" : "asc";
 	String idArrow   = "id".equals(sortKey)   ? ("asc".equals(order) ? "▲" : "▼") : "▲▼";
 	String dateArrow = "date".equals(sortKey) ? ("asc".equals(order) ? "▲" : "▼") : "▲▼";
+
+	// ページング（1ページ30件）。削除で件数が減ると自動的に上へ詰まる。
+	final int PAGE_SIZE = 30;
+	int total = slips.size();
+	int totalPages = Math.max(1, (int) Math.ceil(total / (double) PAGE_SIZE));
+	int pageNo = 1;
+	try {
+		String pp = request.getParameter("page");
+		if (pp != null && !pp.trim().isEmpty()) {
+			pageNo = Integer.parseInt(pp.trim());
+		}
+	} catch (NumberFormatException e) {
+		pageNo = 1;
+	}
+	if (pageNo < 1) pageNo = 1;
+	if (pageNo > totalPages) pageNo = totalPages;
+
+	int from = (pageNo - 1) * PAGE_SIZE;
+	int to = Math.min(from + PAGE_SIZE, total);
+	List<Slip> pageSlips = (total == 0) ? slips : slips.subList(from, to);
+
+	// ページ移動リンクに、並び順・検索キーワードを引き継ぐための共通パラメータ
+	String navParams = "sortKey=" + sortKey + "&order=" + order + qParam;
 %>
 <!DOCTYPE html>
 <html lang="ja">
@@ -92,7 +115,7 @@
                     <td colspan="7">伝票がありません。「新規登録」から追加してください。</td>
                 </tr>
                 <% } %>
-                <% for (Slip s : slips) {
+                <% for (Slip s : pageSlips) {
                        String dateSlash = s.getDate().replace("-", "/");
                 %>
                 <tr>
@@ -111,6 +134,37 @@
                 <% } %>
             </tbody>
         </table>
+
+        <!-- ページネーション -->
+        <% if (total > 0) { %>
+        <div class="pagination">
+            <% if (pageNo > 1) { %>
+                <a class="page-btn" href="index.jsp?<%= navParams %>&page=1">&laquo; 最初</a>
+                <a class="page-btn" href="index.jsp?<%= navParams %>&page=<%= pageNo - 1 %>">&lsaquo; 前へ</a>
+            <% } else { %>
+                <span class="page-btn disabled">&laquo; 最初</span>
+                <span class="page-btn disabled">&lsaquo; 前へ</span>
+            <% } %>
+
+            <!-- ページ番号を直接入力して移動 -->
+            <form method="get" action="index.jsp" class="page-jump">
+                <input type="hidden" name="sortKey" value="<%= sortKey %>">
+                <input type="hidden" name="order" value="<%= order %>">
+                <% if (!q.isEmpty()) { %><input type="hidden" name="q" value="<%= esc(q) %>"><% } %>
+                <input type="number" name="page" min="1" max="<%= totalPages %>" value="<%= pageNo %>" class="page-input">
+                <span class="page-total">/ <%= totalPages %> ページ（全 <%= total %> 件）</span>
+                <button type="submit" class="page-btn">移動</button>
+            </form>
+
+            <% if (pageNo < totalPages) { %>
+                <a class="page-btn" href="index.jsp?<%= navParams %>&page=<%= pageNo + 1 %>">次へ &rsaquo;</a>
+                <a class="page-btn" href="index.jsp?<%= navParams %>&page=<%= totalPages %>">最後 &raquo;</a>
+            <% } else { %>
+                <span class="page-btn disabled">次へ &rsaquo;</span>
+                <span class="page-btn disabled">最後 &raquo;</span>
+            <% } %>
+        </div>
+        <% } %>
     </div>
 
 </body>
