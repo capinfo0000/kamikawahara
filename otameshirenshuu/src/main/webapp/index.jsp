@@ -49,7 +49,7 @@
                     <td class="col-partner">(株)〇〇</td>
                     <td class="col-description">懇親会費</td>
                     <td class="col-amount col-amount-td">¥100,000</td>
-                    <td class="col-detail"><a href="detail.jsp" class="detail-link">明細</a></td>
+                    <td class="col-detail"><a href="detail?mode=view" class="detail-link">明細</a></td>
                     <td class="col-delete-cell"><button class="btn-list-delete">削除</button></td>
                 </tr>
                 <tr>
@@ -58,7 +58,7 @@
                     <td class="col-partner">▢▢(株)</td>
                     <td class="col-description">モニター</td>
                     <td class="col-amount col-amount-td">¥50,000</td>
-                    <td class="col-detail"><a href="detail.jsp" class="detail-link">明細</a></td>
+                    <td class="col-detail"><a href="detail?mode=view" class="detail-link">明細</a></td>
                     <td class="col-delete-cell"><button class="btn-list-delete">削除</button></td>
                 </tr>
                 <tr>
@@ -67,7 +67,7 @@
                     <td class="col-partner">△△商店</td>
                     <td class="col-description">　</td>
                     <td class="col-amount col-amount-td">¥3,000</td>
-                    <td class="col-detail"><a href="detail.jsp" class="detail-link">明細</a></td>
+                    <td class="col-detail"><a href="detail?mode=view" class="detail-link">明細</a></td>
                     <td class="col-delete-cell"><button class="btn-list-delete">削除</button></td>
                 </tr>
                 <tr>
@@ -76,7 +76,7 @@
                     <td class="col-partner">✕✕産業(株)</td>
                     <td class="col-description">　</td>
                     <td class="col-amount col-amount-td">¥7,100</td>
-                    <td class="col-detail"><a href="detail.jsp" class="detail-link">明細</a></td>
+                    <td class="col-detail"><a href="detail?mode=view" class="detail-link">明細</a></td>
                     <td class="col-delete-cell"><button class="btn-list-delete">削除</button></td>
                 </tr>
                 <tr>
@@ -85,7 +85,7 @@
                     <td class="col-partner">鈴木商事</td>
                     <td class="col-description"></td>
                     <td class="col-amount col-amount-td">¥80,000</td>
-                    <td class="col-detail"><a href="detail.jsp" class="detail-link">明細</a></td>
+                    <td class="col-detail"><a href="detail?mode=view" class="detail-link">明細</a></td>
                     <td class="col-delete-cell"><button class="btn-list-delete">削除</button></td>
                 </tr>
                 <tr>
@@ -94,7 +94,7 @@
                     <td class="col-partner">(有)サトウ商会</td>
                     <td class="col-description"></td>
                     <td class="col-amount col-amount-td">¥15,800</td>
-                    <td class="col-detail"><a href="detail.jsp" class="detail-link">明細</a></td>
+                    <td class="col-detail"><a href="detail?mode=view" class="detail-link">明細</a></td>
                     <td class="col-delete-cell"><button class="btn-list-delete">削除</button></td>
                 </tr>
                 <tr>
@@ -103,7 +103,7 @@
                     <td class="col-partner">田中ロジスティクス</td>
                     <td class="col-description"></td>
                     <td class="col-amount col-amount-td">¥120,000</td>
-                    <td class="col-detail"><a href="detail.jsp" class="detail-link">明細</a></td>
+                    <td class="col-detail"><a href="detail?mode=view" class="detail-link">明細</a></td>
                     <td class="col-delete-cell"><button class="btn-list-delete">削除</button></td>
                 </tr>
                 <tr>
@@ -112,7 +112,7 @@
                     <td class="col-partner">合同会社マツモト</td>
                     <td class="col-description"></td>
                     <td class="col-amount col-amount-td">¥4,500</td>
-                    <td class="col-detail"><a href="detail.jsp" class="detail-link">明細</a></td>
+                    <td class="col-detail"><a href="detail?mode=view" class="detail-link">明細</a></td>
                     <td class="col-delete-cell"><button class="btn-list-delete">削除</button></td>
                 </tr>
                 <tr>
@@ -121,7 +121,7 @@
                     <td class="col-partner">高橋テック(株)</td>
                     <td class="col-description"></td>
                     <td class="col-amount col-amount-td">¥62,000</td>
-                    <td class="col-detail"><a href="detail.jsp" class="detail-link">明細</a></td>
+                    <td class="col-detail"><a href="detail?mode=view" class="detail-link">明細</a></td>
                     <td class="col-delete-cell"><button class="btn-list-delete">削除</button></td>
                 </tr>
                 <tr>
@@ -130,7 +130,7 @@
                     <td class="col-partner">渡辺事務用品</td>
                     <td class="col-description">　</td>
                     <td class="col-amount col-amount-td">¥9,800</td>
-                    <td class="col-detail"><a href="detail.jsp" class="detail-link">明細</a></td>
+                    <td class="col-detail"><a href="detail?mode=view" class="detail-link">明細</a></td>
                     <td class="col-delete-cell"><button class="btn-list-delete">削除</button></td>
                 </tr>
                 <tr>
@@ -139,7 +139,7 @@
                     <td class="col-partner">伊藤デンタルクリニック</td>
                     <td class="col-description"></td>
                     <td class="col-amount col-amount-td">¥5,500</td>
-                    <td class="col-detail"><a href="detail.jsp" class="detail-link">明細</a></td>
+                    <td class="col-detail"><a href="detail?mode=view" class="detail-link">明細</a></td>
                     <td class="col-delete-cell"><button class="btn-list-delete">削除</button></td>
                 </tr>
                 <tr>
@@ -148,7 +148,7 @@
                     <td class="col-partner">山本印刷(株)</td>
                     <td class="col-description"></td>
                     <td class="col-amount col-amount-td">¥43,200</td>
-                    <td class="col-detail"><a href="detail.jsp" class="detail-link">明細</a></td>
+                    <td class="col-detail"><a href="detail?mode=view" class="detail-link">明細</a></td>
                     <td class="col-delete-cell"><button class="btn-list-delete">削除</button></td>
                 </tr>
                 <tr>
@@ -157,7 +157,7 @@
                     <td class="col-partner">中村不動産</td>
                     <td class="col-description">　</td>
                     <td class="col-amount col-amount-td">¥150,000</td>
-                    <td class="col-detail"><a href="detail.jsp" class="detail-link">明細</a></td>
+                    <td class="col-detail"><a href="detail?mode=view" class="detail-link">明細</a></td>
                     <td class="col-delete-cell"><button class="btn-list-delete">削除</button></td>
                 </tr>
                 <tr>
@@ -166,7 +166,7 @@
                     <td class="col-partner">小林通信(株)</td>
                     <td class="col-description">　</td>
                     <td class="col-amount col-amount-td">¥12,400</td>
-                    <td class="col-detail"><a href="detail.jsp" class="detail-link">明細</a></td>
+                    <td class="col-detail"><a href="detail?mode=view" class="detail-link">明細</a></td>
                     <td class="col-delete-cell"><button class="btn-list-delete">削除</button></td>
                 </tr>
                 <tr>
@@ -175,7 +175,7 @@
                     <td class="col-partner">加藤法律事務所</td>
                     <td class="col-description"></td>
                     <td class="col-amount col-amount-td">¥33,000</td>
-                    <td class="col-detail"><a href="detail.jsp" class="detail-link">明細</a></td>
+                    <td class="col-detail"><a href="detail?mode=view" class="detail-link">明細</a></td>
                     <td class="col-delete-cell"><button class="btn-list-delete">削除</button></td>
                 </tr>
                 <tr>
@@ -184,7 +184,7 @@
                     <td class="col-partner">吉田ベンディングサービス</td>
                     <td class="col-description">　</td>
                     <td class="col-amount col-amount-td">¥8,200</td>
-                    <td class="col-detail"><a href="detail.jsp" class="detail-link">明細</a></td>
+                    <td class="col-detail"><a href="detail?mode=view" class="detail-link">明細</a></td>
                     <td class="col-delete-cell"><button class="btn-list-delete">削除</button></td>
                 </tr>
                 <tr>
@@ -193,7 +193,7 @@
                     <td class="col-partner">山田コンサルティング</td>
                     <td class="col-description"></td>
                     <td class="col-amount col-amount-td">¥220,000</td>
-                    <td class="col-detail"><a href="detail.jsp" class="detail-link">明細</a></td>
+                    <td class="col-detail"><a href="detail?mode=view" class="detail-link">明細</a></td>
                     <td class="col-delete-cell"><button class="btn-list-delete">削除</button></td>
                 </tr>
                 <tr>
@@ -202,7 +202,7 @@
                     <td class="col-partner">佐々木エナジー(株)</td>
                     <td class="col-description"></td>
                     <td class="col-amount col-amount-td">¥19,500</td>
-                    <td class="col-detail"><a href="detail.jsp" class="detail-link">明細</a></td>
+                    <td class="col-detail"><a href="detail?mode=view" class="detail-link">明細</a></td>
                     <td class="col-delete-cell"><button class="btn-list-delete">削除</button></td>
                 </tr>
                 <tr>
@@ -211,7 +211,7 @@
                     <td class="col-partner">山口オートサービス</td>
                     <td class="col-description"> </td>
                     <td class="col-amount col-amount-td">¥54,000</td>
-                    <td class="col-detail"><a href="detail.jsp" class="detail-link">明細</a></td>
+                    <td class="col-detail"><a href="detail?mode=view" class="detail-link">明細</a></td>
                     <td class="col-delete-cell"><button class="btn-list-delete">削除</button></td>
                 </tr>
                 <tr>
@@ -220,7 +220,7 @@
                     <td class="col-partner">松本システム開発</td>
                     <td class="col-description"> </td>
                     <td class="col-amount col-amount-td">¥88,000</td>
-                    <td class="col-detail"><a href="detail.jsp" class="detail-link">明細</a></td>
+                    <td class="col-detail"><a href="detail?mode=view" class="detail-link">明細</a></td>
                     <td class="col-delete-cell"><button class="btn-list-delete">削除</button></td>
                 </tr>
             </tbody>

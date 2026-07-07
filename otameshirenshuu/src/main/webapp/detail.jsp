@@ -33,7 +33,10 @@
     }
     
     String slipDate = (String) request.getAttribute("slipDate");
-    
+    if (slipDate == null) {
+    	slipDate = "";
+    }
+
     String partnerName = (String) request.getAttribute("partnerName");
     if (partnerName == null) {
     	partnerName = "";
@@ -67,7 +70,22 @@
 %>
 
     <div class="page-wrapper">
-        
+
+        <!-- 入力エラーメッセージ（サーブレットから渡された場合のみ表示） -->
+        <%
+            java.util.List<String> errors =
+                (java.util.List<String>) request.getAttribute("errors");
+            if (errors != null && !errors.isEmpty()) {
+        %>
+        <div class="error-banner">
+            <ul>
+                <% for (String err : errors) { %>
+                    <li><%= err %></li>
+                <% } %>
+            </ul>
+        </div>
+        <% } %>
+
         <!-- 上部ヘッダーエリア（基本情報とボタン） -->
         <div class="header-container">
             
@@ -188,15 +206,28 @@
             	if (detailList == null) {
             		detailList = new java.util.ArrayList<>();
             	}
-            	
+
+            	//借方・貸方の合計金額を集計する
+            	int debitTotal = 0;
+            	int creditTotal = 0;
+
             	//箱に入っているデータの数だけtrを自動で繰り返す
             	for (java.util.Map<String, String> row : detailList) {
-            		
+
             		String dSub = row.getOrDefault("debitSubject", "");
             		String dAmt = row.getOrDefault("debitAmount", "");
             		String cSub = row.getOrDefault("creditSubject", "");
             		String cAmt = row.getOrDefault("creditAmount", "");
-            	
+
+            		//金額文字列から数字以外を除去して合計に加算
+            		String cleanDAmt = dAmt.replaceAll("[^0-9]", "");
+            		String cleanCAmt = cAmt.replaceAll("[^0-9]", "");
+            		if (!cleanDAmt.isEmpty()) {
+            			debitTotal += Integer.parseInt(cleanDAmt);
+            		}
+            		if (!cleanCAmt.isEmpty()) {
+            			creditTotal += Integer.parseInt(cleanCAmt);
+            		}
             	%>
             
             
@@ -246,43 +277,19 @@
 	                
 	                <!-- 合計行 -->
 	                <tr class="total-row">
-						
+
 						<!-- 借方合計金額エリア -->
 	                    <td class="col-subject">合計</td>
 	                    <td class="col-amount-total">
-	                    	<% if ("view".equals(currentMode)) { %>
-								<!-- 閲覧モード -->
-								<span class="view-mode">&yen;100,000</span>
-							<% } %>
-							
-							<% if ("edit".equals(currentMode)) { %>
-								<!-- 編集モード -->
-								<span class="edit-mode">&yen;100,000</span>
-							<% } %>
-							
-							<% if ("new".equals(currentMode)) { %>
-								<!-- 新規登録用の時は、初期値として\0を出す -->
-								<span class="edit-mode register-only">&yen;0</span>
-							<% } %>
+							<!-- 明細から集計した借方合計を表示 -->
+							<span class="<%= "view".equals(currentMode) ? "view-mode" : "edit-mode" %>">&yen;<%= String.format("%,d", debitTotal) %></span>
 						</td>
-						
+
 						<!-- 貸方合計金額エリア -->
 	                    <td class="col-subject">合計</td>
 	                    <td class="col-amount-total">
-							<% if ("view".equals(currentMode)) { %>
-	            				<!-- 閲覧モード -->
-	            				<span class="view-mode">&yen;100,000</span>
-	        				<% } %>
-	
-	        				<% if ("edit".equals(currentMode)) { %>
-	            				<!-- 編集モード -->
-	            				<span class="edit-mode">&yen;100,000</span>
-	        				<% } %>
-	
-	        				<% if ("new".equals(currentMode)) { %>
-	            				<!-- 新規登録モードの時は、初期値として¥0を出す -->
-	            				<span class="edit-mode register-only">&yen;0</span>
-	        				<% } %>
+							<!-- 明細から集計した貸方合計を表示 -->
+							<span class="<%= "view".equals(currentMode) ? "view-mode" : "edit-mode" %>">&yen;<%= String.format("%,d", creditTotal) %></span>
 						</td>
 	                </tr>
 	                
