@@ -1,0 +1,619 @@
+body {
+    font-family: 'Helvetica Neue', Arial, sans-serif;
+    color: #333;
+    margin: 40px 0;
+    background-color: #fff;
+    display: flex;
+    justify-content: center;
+}
+
+/* 全体を1000pxに固定して中央配置 */
+.page-wrapper {
+    width: 1000px;
+    position: relative;
+    min-height: 500px;
+}
+
+/* ヘッダーエリアの配置（合計1000px） */
+.header-container {
+    display: flex;
+    align-items: flex-end; /* 下揃え */
+    margin-bottom: 30px;
+    width: 100%;
+}
+
+/* 左側のボタンと日付をまとめる縦並びグループ */
+.back-actions-group{
+	width: 200px;
+	display: flex;
+	flex-direction: column;
+	gap: 15px;
+}
+
+/*　伝票一覧に戻るボタンの見た目 */	
+.btn-back{	
+	display: inline-block;
+	color: #666;
+	text-decoration: none;
+	font-size: 14px;
+	align-self: flex-start;
+	transition: color 0.2s;
+}
+.btn-back:hover{
+	color: #333;				/* マウスを乗せたら少し濃くする */
+	text-decoration: underline; /* マウスを乗せた時だけ下線を出す */
+}
+
+/* 日付と伝票番号をまとめる縦並びエリア（200px） */
+.meta-info-group {
+    width: 200px;
+    display: flex;
+    flex-direction: column; /* 👈 縦に並べる設定 */
+    gap: 8px;              /* 日付と伝票番号の上下のすき間 */
+}
+
+/* 各要素の基本設定 */
+.header-item {
+    font-size: 16px;
+    display: flex;
+    align-items: flex-end;
+    white-space: nowrap;
+    box-sizing: border-box;
+}
+
+/* 日付と伝票番号の各行設定 */
+.item-date, .item-id {
+    min-width: 100%;
+    display: inline-block;
+}
+.item-date .underline-text,
+.item-id .underline-text {
+    display: inline-block;
+    min-width: 80px;
+    max-width: 180px;
+    text-align: center;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* 取引先エリア */
+.item-partner {
+    width: 550px;
+    font-size: 24px;
+}
+.item-partner .partner-name {
+    display: inline-block;
+    min-width: 200px;
+    max-width: 480px; 
+    text-align: center;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.partner-name,
+.partner-input {
+    font-family: inherit;    
+    font-size: 24px;         
+    color: #333;              
+    display: inline-block;
+    vertical-align: middle;   
+}
+
+
+.partner-input {
+    background: transparent;  
+    border: none;             
+    padding: 0;               
+    margin: 0;                
+    outline: none;    
+    /* 閲覧用の「underline-text」と同じ下線を編集用にもつける */
+    border-bottom: 1px solid #333; 
+    width: 250px;             /* 入力できる横幅をしっかり確保する */
+}
+
+/* 購入物 */
+.description-text,
+.description-input {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+    font-size: 20px !important;   /* 取引先と同じ大きなサイズ */
+    color: #333333 !important;
+}
+
+/* 編集用（input）の余白や位置を完璧に揃える */
+.description-input {
+    background: transparent !important;
+    border: none !important;
+    outline: none !important;
+    
+    /* 下線と余白を完全に統一 */
+    border-bottom: 1px solid #333 !important;
+    padding: 0 10px !important;
+    margin-left: 5px !important;
+    
+    /* 文字数が長くなることを想定して、横幅を取引先より少し広めに確保 */
+    width: 300px; 
+    
+    vertical-align: bottom !important; 
+    line-height: normal !important;
+}
+
+/* ヘッダーの項目同士がくっつかないように横の隙間を空ける（もし必要なら） */
+.item-description {
+    margin-left: 30px; /* 取引先との間に30pxの隙間を作る */
+    display: inline-block;
+}
+
+/* 下線デザイン共通 */
+.underline-text {
+    border-bottom: 1px solid #333;
+    padding: 0 10px;
+    margin-left: 5px;
+}
+
+
+/* 右上ボタンエリア（180px） */
+.button-group {
+    /* width: 180px; は削除します（横幅の固定をなくして自由に広げます） */
+    display: flex;
+    justify-content: flex-end;
+    gap: 15px;
+    flex-shrink: 0;             /* 【最重要】どれだけ周りが広がっても絶対にボタンを潰さない */
+    margin-left: auto;          /* ボタンエリアを自動的に一番右端にぴったり寄せる */
+    align-self: flex-end;       /* 取引先や購入物の下線ラインとボタンの下側を綺麗に揃える */
+}
+
+.button-group a{
+	text-decoration: none;
+}
+
+.button-group a:hover{
+	text-decoration: underline;
+}
+
+.btn {
+    background-color: #fff;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    padding: 6px 16px; 
+    font-size: 14px;
+    cursor: pointer;
+    box-shadow: 1px 1px 3px rgba(0,0,0,0.1);
+    white-space: nowrap;        /* ボタンの中の「編集」「削除」の文字が絶対に改行されないようにガード */
+}
+
+.btn-edit { color: #337ab7; }
+.btn-delete { color: #d9534f; }
+
+
+/* 1. 「購入したもの（購入物）」エリア全体の横幅と配置を固定する */
+.item-description {
+    display: inline-block;
+    margin-left: 10px;          /* 取引先との間にほどよい隙間を開ける */
+    white-space: nowrap;        /* 【重要】「購入物」の文字が縦に改行されるのを防ぐ */
+    vertical-align: bottom;     /* 下側のラインを取引先とピタッと揃える */
+}
+
+/* 2. 閲覧用の文字と、編集用の入力欄の見た目を完全に統一する */
+.description-text,
+.description-input {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+    font-size: 20px ;   /* 取引先（(株)〇〇）と全く同じ大きさに修正 */
+    display: inline-block;
+    vertical-align: bottom !important;
+}
+
+/* 3. 編集用の入力欄（input）の枠線消しと、横幅の確保 */
+.description-input {
+    background: transparent !important;
+    border: none !important;
+    outline: none !important;
+    
+    /* 下線と余白を取引先と完全統一 */
+    border-bottom: 1px solid #333 !important;
+    padding: 0 10px !important;
+    margin-left: 5px !important;
+    
+    /* 文字が長くても潰れないように、横幅をしっかり広めに確保 */
+    width: 300px !important; 
+    line-height: normal !important;
+}
+
+/* テーブルスタイル */
+.journal-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+    table-layout: fixed;
+    margin-bottom: 25px;
+}
+.journal-table th, .journal-table td {
+    border: 1px solid #333;
+    padding: 0 5px;
+    height: 37px;
+    box-sizing: border-box;
+    vertical-align: middle;
+}
+.journal-table th {
+    font-weight: normal;
+}
+
+/* 科目列と金額列の幅（500pxずつ） */
+.col-subject { width: 250px; }
+.col-amount {width: 250px; }
+
+/* 勘定科目の列はヘッダーも含めて「中央揃え」 */
+.journal-table .col-subject,
+.journal-table th {
+    text-align: center;
+}
+
+/* 金額列の数値（データ行）のみ「右揃え」 */
+td.col-amount ,td.col-amount-total{
+    text-align: right;
+}
+
+/* 金額列の見出し（ヘッダー）は「中央揃え」 */
+th.col-amount {
+    text-align: center;
+}
+
+/* 合計行の装飾 */
+.total-row {
+    font-weight: bold;
+}
+.total-row td {
+    border-top: 3.5px double #333;
+}
+
+/* 行追加ボタンの配置エリア（右寄せにして貸方の下に持ってくる設定） */
+.add-row-container {
+	display: flex;
+    justify-content: flex-end;
+    margin-bottom: 15px;
+    margin-top: -10px;
+}
+
+/* 編集モード（page-wrapperにis-editがついた時）だけ、表示を「flex」にする */
+.page-wrapper.is-edit .add-row-container,
+.page-wrapper.is-new .add-row-container{
+	display: flex;
+}
+
+/* 行追加ボタン自体の見た目設定 */
+.btn-add-row {
+    background-color: #fff;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    color: #337ab7; 
+    padding: 6px 16px;
+    font-size: 14px;
+    cursor: pointer;
+    box-shadow: 1px 1px 3px rgba(0,0,0,0.1);
+    transition: background 0.2s;
+}
+
+.btn-add-row:hover {
+    background-color: #f9f9f9;
+}
+
+
+
+/* 備考エリア */
+.note-container {
+    width: 100%;
+    display: flex;
+    align-items: flex-start; /* 「備考：」の文字を左上に配置 */
+    font-size: 14px;
+    margin-top: 10px;
+    box-sizing: border-box;
+}
+
+/*「備考：」のラベル部分 */
+.note-label {
+    padding-top: 8px; /* 入力枠内の最初の行と高さを揃えるための微調整 */
+    white-space: nowrap;
+}
+
+/* 3行分の入力兼表示用テキストエリア */
+.note-textarea {
+    flex-grow: 1;
+    font-family: inherit; /* bodyのフォント（Helvetica等）を引き継ぐ */
+    font-size: 14px;
+    line-height: 1.5;
+    padding: 8px 12px;
+    border: 1px solid #333; 
+    border-radius: 4px;
+    background-color: #fcfcfc;
+    resize: vertical; /* ユーザーが上下にだけ枠を広げられるようにする（横崩れ防止） */
+    box-sizing: border-box;
+    color: #333;
+    outline: none; /* クリックした時の青い枠線を消す */
+}
+
+/* ----------------------------------
+   備考エリアの編集モード切替設定
+---------------------------------- */
+
+/* 編集モードの表示切替 */
+.page-wrapper.is-edit .note-container .view-mode{
+	display: none;
+}
+.page-wrapper.is-edit .note-container .edit-mode{
+	display: block;
+	width: 100%;
+}
+
+
+
+/* ----------------------------------
+   共通確認ポップアップ設定
+---------------------------------- */
+.popup-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: rgba(0, 0, 0, 0.4);
+    z-index: 1000;
+    justify-content: center;
+    align-items: center;
+}
+
+.popup-close {
+    position: absolute;
+    top: 10px;
+    right: 15px;
+    background: none;
+    border: none;
+    font-size: 14px;
+    cursor: pointer;
+    text-decoration: none;
+}
+
+.popup-btn-group {
+    display: flex;
+    justify-content: center;
+    gap: 30px;
+    margin-bottom: 10px;
+}
+
+.popup-btn-group a,
+.popup-btn-group a:visited {
+	color: #333333;
+	text-decoration: none;
+	display: inline-block;
+}
+
+.popup-btn-group a:hover {
+	opacity: 0.8;
+	text-decoration: underline;
+}
+
+
+/* ----------------------------------
+   削除確認ポップアップ設定
+---------------------------------- */
+.delete-layout{
+	display: none;
+}
+
+div.delete-layout:target {
+	display: flex ;
+}
+
+.delete-popup-box {
+    background: #fff;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    box-shadow: 0px 4px 15px rgba(0,0,0,0.2);
+    width: 450px;
+    padding: 20px;
+    position: relative;
+    text-align: center;
+}
+
+.delete-popup-box .text-danger{
+	color:#ff0000;
+	font-weight: 550;
+}
+
+.popup-title {
+    color: #333333;
+    font-size: 18px;
+    margin-top: 10px;
+    margin-bottom: 20px;
+}
+
+.popup-btn {
+    background-color: #fff;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    width: 140px;
+    padding: 8px 0;
+    font-size: 14px;
+    cursor: pointer;
+    box-shadow: 1px 1px 3px rgba(0,0,0,0.1);
+}
+
+
+/* ----------------------------------
+   金額確認ポップアップ設定
+---------------------------------- */
+.error-layout{
+	display: none;
+}
+
+.error-popup-box{
+	background: #fff;
+	border: 1px solid #ccc;
+	box-shadow: 0px 4px 15px rgba(0,0,0,0.2);
+	position: relative;
+	text-align:center;
+	width: 600px;
+	padding: 40px 20px;
+	border-radius: 0;
+}
+
+.error-close{
+	font-size: 16px;
+	font-weight: bold;
+	color: #ff0000;
+}
+
+
+.error-text{
+	font-family: "Hiragino Kaku Gothic ProN", "Meiryo", "MS PGothic", sans-serif;
+	font-weight: 600;
+	color: #333333;
+	font-size: 18px;
+	line-height: 1.8;
+	margin: 0;
+	letter-spacing: 1px;
+}
+
+/* ----------------------------------
+   登録確認ポップアップ設定
+---------------------------------- */
+.register-layout{
+	display: none;
+}
+
+.register-popup-box{
+	background: #fff;
+	border: 1px solid #ccc;
+	border-radius: 4px;
+	box-shadow: 0px 4px 15px rgba(0,0,0,0.2);
+	width: 450px;
+	padding: 20px;
+	position: relative;
+	text-align: center;
+}
+
+.register-popup-box .text-primary{
+	color: #0055ff;
+	font-weight: 550;
+}
+
+/* ----------------------------------
+   編集破棄確認ポップアップ設定
+---------------------------------- */
+.leave-popup-layout{
+	display: none;
+}
+
+.leave-popup-layout:target{
+	display: flex !important;
+}
+
+.leave-popup-box{
+	background: #fff;
+	border: 1px solid #ccc;
+	border-radius: 4px;
+	box-shadow: 0px 4px 15px rgba(0,0,0,0.2);
+	width: 450px;
+	padding: 20px;
+	position: relative;
+	text-align: center;
+}
+
+.leave-message-container{
+	margin-top: 15px;
+	font-size: 15px;
+	color: #333;
+	line-height: 1.6;
+}
+
+.leave-text{
+	margin: 0;
+}
+.leave-text:first-child{
+	font-weight: bold;
+}
+
+.btn-ok-link{
+	text-decoration: none;
+	color: #333;
+	display: inline-block;
+	line-height: 1.4;
+	box-sizing: border-box;
+	padding-top: 8px;
+}
+
+.leave-popup-box .popup-btn-group{
+	margin-top: 10px;
+}
+
+
+/* ----------------------------------
+   閲覧・編集モード切替設定
+---------------------------------- */
+
+
+/* 金額の右寄せ用共通クラス */
+.text-right{
+	text-align: right;
+}
+
+/* 入力枠（inputタグ）自体の共通デザイン */
+.input-field{
+	width: 100%;
+	border: none;
+	outline: none;
+	background: transparent;
+	padding: 4px 8px;
+	font-size: 14px;
+	font-family: inherit;
+	box-sizing: border-box;
+}
+
+/* 編集モードの見た目を確認するためのルール */
+.page-wrapper.is-edit .view-mode,
+.page-wrapper.is-new .view-mode{
+	display: none;
+}
+
+.page-wrapper.is-edit .item-id .view-mode{
+	display: inline-block;
+}
+
+.page-wrapper.is-edit .edit-mode:not(.register-only){
+	display: inline-block;
+}
+
+.page-wrapper.is-new .edit-mode{
+	display: inline-block;
+}
+
+.page-wrapper.is-edit .slip-table .edit-mode.input-field,
+.page-wrapper.is-new .slip-table .edit-mode.input-field {
+    display: block;
+    width: 100%;
+}
+
+.page-wrapper.is-new .button-group .edit-mode {
+    display: block;
+}
+
+/* ヘッダー内入力枠（inputタグ）の共通デザイン */
+.header-input{
+	border: none;
+	outline: none;
+	background: transparent;
+	font-size: inherit;
+	font-family: inherit;
+	color: #333;
+	border-bottom: 1px solid #333;
+	padding: 0 5px;
+}
+
+/* 取引先入力欄の幅を少し広げる調整 */
+.partner-input{
+	width: 300px;
+	padding: 8px 5px;
+	font-size: 18px;
+}
+
+
+
+
