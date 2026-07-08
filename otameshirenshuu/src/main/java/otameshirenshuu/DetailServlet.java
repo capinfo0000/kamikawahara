@@ -201,6 +201,7 @@ public class DetailServlet extends HttpServlet {
 		appendParam(sb, "order", request.getParameter("order"));
 		appendParam(sb, "page", request.getParameter("page"));
 		appendParam(sb, "q", request.getParameter("q"));
+		appendParam(sb, "no", request.getParameter("no"));
 		return (sb.length() == 0) ? "" : "?" + sb.substring(1);
 	}
 

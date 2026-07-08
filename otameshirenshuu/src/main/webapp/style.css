@@ -302,3 +302,14 @@ h1 {
     color: #333;
     white-space: nowrap;
 }
+
+/* 伝票番号の検索ボックス */
+.no-search-box {
+    height: 30px;
+    box-sizing: border-box;
+    border: 1px solid #333;
+    padding: 4px 8px;
+    font-size: 14px;
+    width: 200px;
+    margin-right: 8px;
+}

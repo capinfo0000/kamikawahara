@@ -17,16 +17,24 @@
 		order = "desc";
 	}
 
-	// 検索キーワード（伝票番号・日付・取引先・購入物を対象）
+	// 検索キーワード（日付・取引先・購入物を対象。伝票番号は別枠）
 	String q = request.getParameter("q");
 	if (q == null) {
 		q = "";
 	}
+	// 伝票番号（単一「5」または範囲「1~10」）
+	String no = request.getParameter("no");
+	if (no == null) {
+		no = "";
+	}
 
-	List<Slip> slips = SlipStore.getInstance().findFiltered(q, sortKey, order);
+	List<Slip> slips = SlipStore.getInstance().findFiltered(q, no, sortKey, order);
 
-	// ソートリンクに検索キーワードを引き継ぐためのURLパラメータ
-	String qParam = q.isEmpty() ? "" : ("&q=" + URLEncoder.encode(q, "UTF-8"));
+	// ソート・ページ移動リンクに検索条件を引き継ぐためのURLパラメータ
+	String qParam  = q.isEmpty()  ? "" : ("&q="  + URLEncoder.encode(q, "UTF-8"));
+	String noParam = no.isEmpty() ? "" : ("&no=" + URLEncoder.encode(no, "UTF-8"));
+	String searchParams = qParam + noParam;
+	boolean hasSearch = !q.isEmpty() || !no.isEmpty();
 
 	// ヘッダーのクリックで昇順⇔降順を切り替える。矢印で現在の並び順を示す。
 	String idNextOrder   = ("id".equals(sortKey)   && "asc".equals(order)) ? "desc" : "asc";
@@ -54,8 +62,8 @@
 	int to = Math.min(from + PAGE_SIZE, total);
 	List<Slip> pageSlips = (total == 0) ? slips : slips.subList(from, to);
 
-	// ページ移動リンクに、並び順・検索キーワードを引き継ぐための共通パラメータ
-	String navParams = "sortKey=" + sortKey + "&order=" + order + qParam;
+	// ページ移動リンクに、並び順・検索条件を引き継ぐための共通パラメータ
+	String navParams = "sortKey=" + sortKey + "&order=" + order + searchParams;
 %>
 <!DOCTYPE html>
 <html lang="ja">
@@ -75,13 +83,15 @@
         <div class="actions-container">
             <!-- 検索フォーム（GETで送信。ソート条件も引き継ぐ） -->
             <form class="search-area" method="get" action="index.jsp">
+                <!-- 伝票番号（単一「5」／範囲「1~10」） -->
+                <input type="text" name="no" value="<%= esc(no) %>" class="no-search-box" placeholder="伝票番号（例: 5 または 1~10）">
             	<div class="search-box">
-                	<input type="text" id="search-input" name="q" value="<%= esc(q) %>" placeholder="検索（伝票番号、日付、取引先、購入物）">
+                	<input type="text" id="search-input" name="q" value="<%= esc(q) %>" placeholder="検索（日付、取引先、購入物）">
             	</div>
                 <input type="hidden" name="sortKey" value="<%= sortKey %>">
                 <input type="hidden" name="order" value="<%= order %>">
                 <button type="submit" class="search-exec-btn" id="search-trigger-btn">検索</button>
-                <% if (!q.isEmpty()) { %>
+                <% if (hasSearch) { %>
                 	<a href="index.jsp?sortKey=<%= sortKey %>&order=<%= order %>" class="search-clear-btn" style="margin-left:8px; font-size:13px; color:#337ab7; text-decoration:none;">クリア</a>
                 <% } %>
             </form>
@@ -92,16 +102,19 @@
 
         </div>
 
-        <% if (!q.isEmpty()) { %>
-        <p style="font-size:14px; margin:0 0 10px;">「<%= esc(q) %>」の検索結果：<%= slips.size() %>件</p>
+        <% if (hasSearch) { %>
+        <p style="font-size:14px; margin:0 0 10px;">検索結果：<%= slips.size() %>件<%
+            if (!no.isEmpty()) { %>（伝票番号: <%= esc(no) %>）<% }
+            if (!q.isEmpty()) { %>（キーワード: <%= esc(q) %>）<% }
+        %></p>
         <% } %>
 
         <!-- 伝票テーブル -->
         <table class="slip-table">
             <thead>
                 <tr>
-                    <th class="col-id sort-trigger" onclick="location.href='index.jsp?sortKey=id&order=<%= idNextOrder %><%= qParam %>'">伝票番号<span class="sort-arrows"><%= idArrow %></span></th>
-                    <th class="col-date sort-trigger" onclick="location.href='index.jsp?sortKey=date&order=<%= dateNextOrder %><%= qParam %>'">日付<span class="sort-arrows"><%= dateArrow %></span></th>
+                    <th class="col-id sort-trigger" onclick="location.href='index.jsp?sortKey=id&order=<%= idNextOrder %><%= searchParams %>'">伝票番号<span class="sort-arrows"><%= idArrow %></span></th>
+                    <th class="col-date sort-trigger" onclick="location.href='index.jsp?sortKey=date&order=<%= dateNextOrder %><%= searchParams %>'">日付<span class="sort-arrows"><%= dateArrow %></span></th>
                     <th class="col-partner">取引先（購入先）</th>
                     <th class="col-description">購入物</th>
                     <th class="col-amount col-amount-th">金額</th>
@@ -126,7 +139,7 @@
                     <td class="col-amount col-amount-td">&yen;<%= String.format("%,d", s.getTotal()) %></td>
                     <td class="col-detail"><a href="detail?mode=view&id=<%= s.getId() %>" class="detail-link">明細</a></td>
                     <td class="col-delete-cell">
-                        <a href="detail?action=delete&id=<%= s.getId() %>&sortKey=<%= sortKey %>&order=<%= order %>&page=<%= pageNo %><%= qParam %>" class="btn-list-delete"
+                        <a href="detail?action=delete&id=<%= s.getId() %>&sortKey=<%= sortKey %>&order=<%= order %>&page=<%= pageNo %><%= searchParams %>" class="btn-list-delete"
                            style="text-decoration:none; display:inline-block; padding:2px 10px;"
                            onclick="return confirm('伝票番号 <%= s.getId() %> を削除しますか？');">削除</a>
                     </td>
@@ -151,6 +164,7 @@
                 <input type="hidden" name="sortKey" value="<%= sortKey %>">
                 <input type="hidden" name="order" value="<%= order %>">
                 <% if (!q.isEmpty()) { %><input type="hidden" name="q" value="<%= esc(q) %>"><% } %>
+                <% if (!no.isEmpty()) { %><input type="hidden" name="no" value="<%= esc(no) %>"><% } %>
                 <input type="number" name="page" min="1" max="<%= totalPages %>" value="<%= pageNo %>" class="page-input">
                 <span class="page-total">/ <%= totalPages %> ページ（全 <%= total %> 件）</span>
                 <button type="submit" class="page-btn">移動</button>

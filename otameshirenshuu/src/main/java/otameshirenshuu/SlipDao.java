@@ -34,26 +34,34 @@ public class SlipDao {
 		return list;
 	}
 
-	/** ソート後にキーワードで絞り込む（伝票番号・日付・取引先・購入物）。 */
+	/** 後方互換：伝票番号指定なしでキーワード検索する。 */
 	public List<Slip> findFiltered(String q, String key, String order) throws SQLException {
+		return findFiltered(q, "", key, order);
+	}
+
+	/**
+	 * ソート後に絞り込む。
+	 * q  … 日付・取引先・購入物のキーワード（伝票番号は対象外）
+	 * no … 伝票番号。単一「5」または範囲「1~10」（〜／～／- も可、片側省略も可）
+	 */
+	public List<Slip> findFiltered(String q, String no, String key, String order) throws SQLException {
 		List<Slip> all = findAllSorted(key, order);
-		if (q == null || q.trim().isEmpty()) {
-			return all;
-		}
-		String needle = q.trim().toLowerCase();
+		String needle = (q == null) ? "" : q.trim().toLowerCase();
 		List<Slip> result = new ArrayList<>();
 		for (Slip s : all) {
-			if (matches(s, needle)) {
-				result.add(s);
+			if (!matchesNo(s, no)) {
+				continue;
 			}
+			if (!needle.isEmpty() && !matchesKeyword(s, needle)) {
+				continue;
+			}
+			result.add(s);
 		}
 		return result;
 	}
 
-	private boolean matches(Slip s, String needle) {
-		if (String.valueOf(s.getId()).contains(needle)) {
-			return true;
-		}
+	/** 日付・取引先・購入物にキーワードが含まれるか（伝票番号は含めない）。 */
+	private boolean matchesKeyword(Slip s, String needle) {
 		String date = (s.getDate() == null) ? "" : s.getDate().toLowerCase();
 		if (date.contains(needle) || date.replace("-", "/").contains(needle)) {
 			return true;
@@ -65,6 +73,47 @@ public class SlipDao {
 			return true;
 		}
 		return false;
+	}
+
+	/** 伝票番号の一致判定。単一「5」/ 範囲「1~10」（区切りは ~ 〜 ～ - に対応、片側省略可）。 */
+	private boolean matchesNo(Slip s, String no) {
+		if (no == null || no.trim().isEmpty()) {
+			return true; // 伝票番号での絞り込みなし
+		}
+		// 各種の波ダッシュ・ハイフンを区切り文字「~」に統一
+		String t = no.trim()
+				.replace('～', '~').replace('〜', '~')
+				.replace('－', '~').replace('−', '~').replace('-', '~');
+		int id = s.getId();
+		if (t.contains("~")) {
+			String[] p = t.split("~", -1);
+			Integer lo = numOrNull(p[0]);
+			Integer hi = numOrNull(p[p.length - 1]);
+			if (lo == null && hi == null) {
+				return true; // 「~」だけ等 → 実質フィルタなし
+			}
+			if (lo != null && hi != null && lo > hi) {
+				int tmp = lo; lo = hi; hi = tmp;
+			}
+			return (lo == null || id >= lo) && (hi == null || id <= hi);
+		}
+		Integer v = numOrNull(t);
+		return v != null && id == v;
+	}
+
+	private static Integer numOrNull(String s) {
+		if (s == null) {
+			return null;
+		}
+		String d = s.replaceAll("[^0-9]", "");
+		if (d.isEmpty()) {
+			return null;
+		}
+		try {
+			return Integer.valueOf(d);
+		} catch (NumberFormatException e) {
+			return null;
+		}
 	}
 
 	public Slip findById(int id) throws SQLException {

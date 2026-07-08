@@ -46,8 +46,12 @@ public class SlipStore {
 	}
 
 	public List<Slip> findFiltered(String q, String key, String order) {
+		return findFiltered(q, "", key, order);
+	}
+
+	public List<Slip> findFiltered(String q, String no, String key, String order) {
 		try {
-			return dao.findFiltered(q, key, order);
+			return dao.findFiltered(q, no, key, order);
 		} catch (SQLException e) {
 			throw new RuntimeException(e);
 		}
