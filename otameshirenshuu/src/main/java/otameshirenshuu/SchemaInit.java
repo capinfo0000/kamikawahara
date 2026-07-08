@@ -32,13 +32,9 @@ public class SchemaInit {
 			+ "  CONSTRAINT fk_entry_slip FOREIGN KEY (slip_id) REFERENCES slip(id) ON DELETE CASCADE"
 			+ ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
 
-	private static boolean done = false;
-
-	/** DB・テーブルを用意し、空ならサンプルを投入する（多重呼び出しは無視）。 */
+	/** DB・テーブルを用意し、空ならサンプルを投入する。冪等なので何度呼んでもよい。 */
+	// 何度呼んでも安全（冪等）。DBが消えても作り直せるよう、毎回チェックする作りにしている。
 	public static synchronized void ensure() throws SQLException {
-		if (done) {
-			return;
-		}
 		// 1. データベースが無ければ作成
 		//    権限やドライバの都合で失敗しても、既にDBが存在すれば後続の接続で動作するため、
 		//    ここでは致命的にせず処理を続ける。
@@ -47,7 +43,7 @@ public class SchemaInit {
 		} catch (SQLException e) {
 			System.out.println("[SchemaInit] データベース作成をスキップしました: " + e.getMessage());
 		}
-		// 2. テーブル作成
+		// 2. テーブル作成（IF NOT EXISTS なので既にあれば何もしない）
 		try (Connection c = Db.getConnection(); Statement st = c.createStatement()) {
 			st.executeUpdate(CREATE_SLIP);
 			st.executeUpdate(CREATE_ENTRY);
@@ -57,7 +53,6 @@ public class SchemaInit {
 		if (dao.count() == 0) {
 			seed(dao);
 		}
-		done = true;
 	}
 
 	/** テスト用：テーブルのみ作成する（データベースは接続先が用意済みとみなす）。 */
