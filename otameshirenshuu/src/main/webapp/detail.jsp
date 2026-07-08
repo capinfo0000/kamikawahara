@@ -134,7 +134,8 @@
 	                <a href="detail?mode=edit&id=<%= slipId %>" class="btn btn-edit">編集</a>
 	                <a href="#delete-popup" class="btn btn-delete">削除</a>
 	            <% } else { %>
-	                <button type="submit" class="btn btn-save">登録</button>
+	                <!-- 送信前に貸借一致チェック→登録確認ポップアップを出すため type="button" -->
+	                <button type="button" class="btn btn-save" onclick="tryRegister()">登録</button>
 	            <% } %>
 	            </div>
         </div>
@@ -299,6 +300,34 @@
 			</div>
 		<% } %>
 
+		<!-- 登録確認ポップアップ（合計一致を確認したうえで表示。文字は黒） -->
+		<% if (!isView) { %>
+			<div id="register-popup" class="popup-overlay register-confirm-layout">
+				<div class="register-popup-box">
+					<button type="button" class="popup-close" onclick="closeRegisterPopup()">❌</button>
+					<p class="popup-title">この内容で登録しますか？</p>
+					<div class="popup-btn-group">
+						<button type="button" class="popup-btn btn-yes" onclick="submitSlip()">はい</button>
+						<button type="button" class="popup-btn" onclick="closeRegisterPopup()">いいえ</button>
+					</div>
+				</div>
+			</div>
+
+			<!-- 貸借不一致ポップアップ（登録前チェックで表示） -->
+			<div id="mismatch-popup" class="popup-overlay mismatch-layout">
+				<div class="error-popup-box">
+					<button type="button" class="popup-close error-close" onclick="closeMismatchPopup()">❌</button>
+					<div class="error-mennage-container">
+						<p class="error-text">借方と貸方の合計金額が一致しません。</p>
+						<p class="error-text">金額を確認してください。</p>
+					</div>
+					<div class="popup-btn-group" style="margin-top:20px;">
+						<button type="button" class="popup-btn" onclick="closeMismatchPopup()">閉じる</button>
+					</div>
+				</div>
+			</div>
+		<% } %>
+
 <script>
 // エラーポップアップを閉じる（背後の入力内容はそのまま残る）
 function closeErrorPopup() {
@@ -338,7 +367,7 @@ function toNum(v) {
 	return v === '' ? 0 : parseInt(v, 10);
 }
 
-// 借方・貸方の合計を再計算して合計行に反映
+// 借方・貸方の合計を集計して返す（合計行の表示も更新）
 function recompute() {
 	var rows = document.querySelectorAll('#entry-tbody .entry-row');
 	var d = 0, c = 0;
@@ -353,6 +382,32 @@ function recompute() {
 	var ce = document.getElementById('credit-total');
 	if (de) de.textContent = '¥' + d.toLocaleString();
 	if (ce) ce.textContent = '¥' + c.toLocaleString();
+	return { debit: d, credit: c };
+}
+
+// 「登録」ボタン：まず貸借一致を確認し、一致していれば登録確認ポップアップを出す
+function tryRegister() {
+	var t = recompute();
+	if (t.debit !== t.credit) {
+		document.getElementById('mismatch-popup').style.display = 'flex';
+		return;
+	}
+	document.getElementById('register-popup').style.display = 'flex';
+}
+
+// 登録確認ポップアップ「はい」：フォームを送信
+function submitSlip() {
+	document.getElementById('slip-form').submit();
+}
+
+function closeRegisterPopup() {
+	var p = document.getElementById('register-popup');
+	if (p) p.style.display = 'none';
+}
+
+function closeMismatchPopup() {
+	var p = document.getElementById('mismatch-popup');
+	if (p) p.style.display = 'none';
 }
 </script>
 

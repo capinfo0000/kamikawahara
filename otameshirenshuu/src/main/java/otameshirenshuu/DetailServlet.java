@@ -89,26 +89,19 @@ public class DetailServlet extends HttpServlet {
 		String[] creditAmounts = request.getParameterValues("creditAmount");
 
 		List<String> errorMessages = new ArrayList<>();
-
-		// 送信された明細行を組み立てる。空白行（4項目すべて空）は取り込まず自動で詰める。
-		List<Entry> entries = new ArrayList<>();
-		int rowCount = (debitAmounts != null) ? debitAmounts.length : 0;
-		int debitTotal = 0;
-		int creditTotal = 0;
 		boolean hasFormatError = false;
 
+		// 借方側・貸方側を「列ごとに独立して」集め、空白マスを飛ばして上へ詰める。
+		// （借方の途中が空でも、下に入力があれば上へ寄る／貸方も同様。左右は別々に詰める）
+		List<String[]> debitSides = new ArrayList<>();   // {科目, 金額(数字のみ)}
+		List<String[]> creditSides = new ArrayList<>();
+
+		int rowCount = maxLen(debitSubjects, debitAmounts, creditSubjects, creditAmounts);
 		for (int i = 0; i < rowCount; i++) {
 			String dSub = at(debitSubjects, i);
 			String dAmt = at(debitAmounts, i);
 			String cSub = at(creditSubjects, i);
 			String cAmt = at(creditAmounts, i);
-
-			Entry entry = new Entry(dSub, digitsOf(dAmt), cSub, digitsOf(cAmt));
-
-			// 空白行は登録データに含めない（上に空行があっても自動で詰まる）
-			if (entry.isBlank()) {
-				continue;
-			}
 
 			// 借方金額の書式チェック
 			if (!dAmt.isEmpty() && !dAmt.matches("^[0-9,]+$") && !hasFormatError) {
@@ -121,9 +114,28 @@ public class DetailServlet extends HttpServlet {
 				hasFormatError = true;
 			}
 
-			debitTotal += entry.getDebitValue();
-			creditTotal += entry.getCreditValue();
-			entries.add(entry);
+			// 借方側：科目か金額のどちらかがあれば「データあり」として詰める
+			if (!dSub.isEmpty() || !dAmt.isEmpty()) {
+				debitSides.add(new String[] { dSub, digitsOf(dAmt) });
+			}
+			// 貸方側も同様に独立して詰める
+			if (!cSub.isEmpty() || !cAmt.isEmpty()) {
+				creditSides.add(new String[] { cSub, digitsOf(cAmt) });
+			}
+		}
+
+		// 詰めた借方・貸方を上から突き合わせて明細行を作る
+		List<Entry> entries = new ArrayList<>();
+		int debitTotal = 0;
+		int creditTotal = 0;
+		int rows = Math.max(debitSides.size(), creditSides.size());
+		for (int i = 0; i < rows; i++) {
+			String[] d = (i < debitSides.size()) ? debitSides.get(i) : new String[] { "", "" };
+			String[] c = (i < creditSides.size()) ? creditSides.get(i) : new String[] { "", "" };
+			Entry e = new Entry(d[0], d[1], c[0], c[1]);
+			debitTotal += e.getDebitValue();
+			creditTotal += e.getCreditValue();
+			entries.add(e);
 		}
 
 		// 明細が1行もなければエラー
@@ -210,6 +222,16 @@ public class DetailServlet extends HttpServlet {
 			return;
 		}
 		sb.append("&").append(key).append("=").append(URLEncoder.encode(value, "UTF-8"));
+	}
+
+	private static int maxLen(String[]... arrays) {
+		int max = 0;
+		for (String[] a : arrays) {
+			if (a != null && a.length > max) {
+				max = a.length;
+			}
+		}
+		return max;
 	}
 
 	private static String at(String[] arr, int i) {
