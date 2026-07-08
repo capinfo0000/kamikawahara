@@ -303,13 +303,13 @@ h1 {
     white-space: nowrap;
 }
 
-/* 伝票番号の検索ボックス */
+/* 伝票番号の検索ボックス（一般の検索欄と同じ高さ・枠。横幅は短め） */
 .no-search-box {
     height: 30px;
     box-sizing: border-box;
     border: 1px solid #333;
     padding: 4px 8px;
     font-size: 14px;
-    width: 200px;
+    width: 150px;
     margin-right: 8px;
 }
