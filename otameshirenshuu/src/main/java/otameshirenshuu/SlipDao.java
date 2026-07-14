@@ -40,65 +40,93 @@ public class SlipDao {
 	}
 
 	/**
-	 * ソート後に絞り込む。
-	 * q  … 日付・取引先・購入物のキーワード（伝票番号は対象外）
+	 * SQLのWHEREで絞り込む。
+	 * q  … 日付・取引先・購入物のキーワード（LIKEで部分一致。伝票番号は対象外）
 	 * no … 伝票番号。単一「5」または範囲「1~10」（〜／～／- も可、片側省略も可）
 	 */
 	public List<Slip> findFiltered(String q, String no, String key, String order) throws SQLException {
-		List<Slip> all = findAllSorted(key, order);
-		String needle = (q == null) ? "" : q.trim().toLowerCase();
-		List<Slip> result = new ArrayList<>();
-		for (Slip s : all) {
-			if (!matchesNo(s, no)) {
-				continue;
-			}
-			if (!needle.isEmpty() && !matchesKeyword(s, needle)) {
-				continue;
-			}
-			result.add(s);
+		String col = "date".equals(key) ? "slip_date" : "id";
+		String dir = "desc".equals(order) ? "DESC" : "ASC";
+
+		// WHEREに入れる条件と、それに対応する「?」の値を並行して組み立てる
+		List<String> conditions = new ArrayList<>();
+		List<Object> params = new ArrayList<>();
+
+		// 伝票番号（単一 / 範囲）の条件
+		addNoCondition(conditions, params, no);
+
+		// キーワード（日付・取引先・購入物）を LIKE で部分一致
+		if (q != null && !q.trim().isEmpty()) {
+			String like = "%" + q.trim() + "%";
+			conditions.add("(slip_date LIKE ? OR REPLACE(slip_date, '-', '/') LIKE ? "
+					+ "OR partner_name LIKE ? OR description LIKE ?)");
+			params.add(like);
+			params.add(like);
+			params.add(like);
+			params.add(like);
 		}
-		return result;
+
+		StringBuilder sql = new StringBuilder(
+				"SELECT id, slip_date, partner_name, description, note FROM slip");
+		if (!conditions.isEmpty()) {
+			sql.append(" WHERE ").append(String.join(" AND ", conditions));
+		}
+		// 並び順（列・方向は固定値のみなので安全）
+		sql.append(" ORDER BY ").append(col).append(" ").append(dir).append(", id ").append(dir);
+
+		List<Slip> list = new ArrayList<>();
+		try (Connection c = Db.getConnection();
+				PreparedStatement ps = c.prepareStatement(sql.toString())) {
+			for (int i = 0; i < params.size(); i++) {
+				ps.setObject(i + 1, params.get(i)); // 1始まりで ? に値を埋める
+			}
+			try (ResultSet rs = ps.executeQuery()) {
+				while (rs.next()) {
+					Slip s = mapSlipHeader(rs);
+					loadEntries(c, s);
+					list.add(s);
+				}
+			}
+		}
+		return list;
 	}
 
-	/** 日付・取引先・購入物にキーワードが含まれるか（伝票番号は含めない）。 */
-	private boolean matchesKeyword(Slip s, String needle) {
-		String date = (s.getDate() == null) ? "" : s.getDate().toLowerCase();
-		if (date.contains(needle) || date.replace("-", "/").contains(needle)) {
-			return true;
-		}
-		if (s.getPartnerName() != null && s.getPartnerName().toLowerCase().contains(needle)) {
-			return true;
-		}
-		if (s.getDescription() != null && s.getDescription().toLowerCase().contains(needle)) {
-			return true;
-		}
-		return false;
-	}
-
-	/** 伝票番号の一致判定。単一「5」/ 範囲「1~10」（区切りは ~ 〜 ～ - に対応、片側省略可）。 */
-	private boolean matchesNo(Slip s, String no) {
+	/** 伝票番号（単一「5」/範囲「1~10」/片側省略）を WHERE 条件に変換して追加する。 */
+	private void addNoCondition(List<String> conditions, List<Object> params, String no) {
 		if (no == null || no.trim().isEmpty()) {
-			return true; // 伝票番号での絞り込みなし
+			return; // 伝票番号での絞り込みなし
 		}
 		// 各種の波ダッシュ・ハイフンを区切り文字「~」に統一
 		String t = no.trim()
 				.replace('～', '~').replace('〜', '~')
 				.replace('－', '~').replace('−', '~').replace('-', '~');
-		int id = s.getId();
 		if (t.contains("~")) {
 			String[] p = t.split("~", -1);
 			Integer lo = numOrNull(p[0]);
 			Integer hi = numOrNull(p[p.length - 1]);
 			if (lo == null && hi == null) {
-				return true; // 「~」だけ等 → 実質フィルタなし
+				return; // 「~」だけ等 → 実質フィルタなし
 			}
 			if (lo != null && hi != null && lo > hi) {
 				int tmp = lo; lo = hi; hi = tmp;
 			}
-			return (lo == null || id >= lo) && (hi == null || id <= hi);
+			if (lo != null) {
+				conditions.add("id >= ?");
+				params.add(lo);
+			}
+			if (hi != null) {
+				conditions.add("id <= ?");
+				params.add(hi);
+			}
+		} else {
+			Integer v = numOrNull(t);
+			if (v != null) {
+				conditions.add("id = ?");
+				params.add(v);
+			} else {
+				conditions.add("1 = 0"); // 数字でない指定は該当なし
+			}
 		}
-		Integer v = numOrNull(t);
-		return v != null && id == v;
 	}
 
 	private static Integer numOrNull(String s) {
