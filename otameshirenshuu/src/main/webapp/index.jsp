@@ -1,69 +1,36 @@
 <%@ page contentType="text/html; charset=UTF-8" %>
-<%@ page import="java.util.*, java.net.URLEncoder, otameshirenshuu.Slip, otameshirenshuu.SlipStore" %>
+<%@ page import="java.util.*, otameshirenshuu.Slip" %>
 <%!
+	// 表示用のHTMLエスケープ（表示の整形のみ）
 	private String esc(String v) {
 		if (v == null) return "";
 		return v.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\"", "&quot;");
 	}
 %>
 <%
-	// ソート条件（sortKey: id / date, order: asc / desc）。既定は伝票番号の降順（新しい順）。
-	String sortKey = request.getParameter("sortKey");
-	if (!"date".equals(sortKey)) {
-		sortKey = "id";
-	}
-	String order = request.getParameter("order");
-	if (!"asc".equals(order)) {
-		order = "desc";
+	// このJSPは「表示」だけを担当する。処理は SlipListServlet(/list) が行う。
+	// 直接開かれて表示データが無いときは、処理担当(/list)へ回す。
+	if (request.getAttribute("pageSlips") == null) {
+		response.sendRedirect(request.getContextPath() + "/list");
+		return;
 	}
 
-	// 検索キーワード（日付・取引先・購入物を対象。伝票番号は別枠）
-	String q = request.getParameter("q");
-	if (q == null) {
-		q = "";
-	}
-	// 伝票番号（単一「5」または範囲「1~10」）
-	String no = request.getParameter("no");
-	if (no == null) {
-		no = "";
-	}
-
-	List<Slip> slips = SlipStore.getInstance().findFiltered(q, no, sortKey, order);
-
-	// ソート・ページ移動リンクに検索条件を引き継ぐためのURLパラメータ
-	String qParam  = q.isEmpty()  ? "" : ("&q="  + URLEncoder.encode(q, "UTF-8"));
-	String noParam = no.isEmpty() ? "" : ("&no=" + URLEncoder.encode(no, "UTF-8"));
-	String searchParams = qParam + noParam;
-	boolean hasSearch = !q.isEmpty() || !no.isEmpty();
-
-	// ヘッダーのクリックで昇順⇔降順を切り替える。矢印で現在の並び順を示す。
-	String idNextOrder   = ("id".equals(sortKey)   && "asc".equals(order)) ? "desc" : "asc";
-	String dateNextOrder = ("date".equals(sortKey) && "asc".equals(order)) ? "desc" : "asc";
-	String idArrow   = "id".equals(sortKey)   ? ("asc".equals(order) ? "▲" : "▼") : "▲▼";
-	String dateArrow = "date".equals(sortKey) ? ("asc".equals(order) ? "▲" : "▼") : "▲▼";
-
-	// ページング（1ページ30件）。削除で件数が減ると自動的に上へ詰まる。
-	final int PAGE_SIZE = 30;
-	int total = slips.size();
-	int totalPages = Math.max(1, (int) Math.ceil(total / (double) PAGE_SIZE));
-	int pageNo = 1;
-	try {
-		String pp = request.getParameter("page");
-		if (pp != null && !pp.trim().isEmpty()) {
-			pageNo = Integer.parseInt(pp.trim());
-		}
-	} catch (NumberFormatException e) {
-		pageNo = 1;
-	}
-	if (pageNo < 1) pageNo = 1;
-	if (pageNo > totalPages) pageNo = totalPages;
-
-	int from = (pageNo - 1) * PAGE_SIZE;
-	int to = Math.min(from + PAGE_SIZE, total);
-	List<Slip> pageSlips = (total == 0) ? slips : slips.subList(from, to);
-
-	// ページ移動リンクに、並び順・検索条件を引き継ぐための共通パラメータ
-	String navParams = "sortKey=" + sortKey + "&order=" + order + searchParams;
+	// SlipListServlet が用意した表示用データを受け取るだけ
+	List<Slip> pageSlips = (List<Slip>) request.getAttribute("pageSlips");
+	int total        = (Integer) request.getAttribute("total");
+	int totalPages   = (Integer) request.getAttribute("totalPages");
+	int pageNo       = (Integer) request.getAttribute("pageNo");
+	String q         = (String) request.getAttribute("q");
+	String no        = (String) request.getAttribute("no");
+	String sortKey   = (String) request.getAttribute("sortKey");
+	String order     = (String) request.getAttribute("order");
+	boolean hasSearch= (Boolean) request.getAttribute("hasSearch");
+	String searchParams = (String) request.getAttribute("searchParams");
+	String navParams    = (String) request.getAttribute("navParams");
+	String idArrow   = (String) request.getAttribute("idArrow");
+	String dateArrow = (String) request.getAttribute("dateArrow");
+	String idNextOrder   = (String) request.getAttribute("idNextOrder");
+	String dateNextOrder = (String) request.getAttribute("dateNextOrder");
 %>
 <!DOCTYPE html>
 <html lang="ja">
@@ -79,11 +46,9 @@
     <div class="page-wrapper">
         <h1>伝票一覧</h1>
 
-        <!-- 検索と新規登録エリア -->
+        <!-- 検索と新規登録エリア（送信先は処理担当の /list） -->
         <div class="actions-container">
-            <!-- 検索フォーム（GETで送信。ソート条件も引き継ぐ） -->
-            <form class="search-area" method="get" action="index.jsp">
-                <!-- 伝票番号（単一「5」／範囲「1~10」） -->
+            <form class="search-area" method="get" action="list">
                 <input type="text" name="no" value="<%= esc(no) %>" class="no-search-box" placeholder="伝票番号（例: 5 または 1~10）">
             	<div class="search-box">
                 	<input type="text" id="search-input" name="q" value="<%= esc(q) %>" placeholder="検索（日付、取引先、購入物）">
@@ -92,7 +57,7 @@
                 <input type="hidden" name="order" value="<%= order %>">
                 <button type="submit" class="search-exec-btn" id="search-trigger-btn">検索</button>
                 <% if (hasSearch) { %>
-                	<a href="index.jsp?sortKey=<%= sortKey %>&order=<%= order %>" class="search-clear-btn" style="margin-left:8px; font-size:13px; color:#337ab7; text-decoration:none;">クリア</a>
+                	<a href="list?sortKey=<%= sortKey %>&order=<%= order %>" class="search-clear-btn" style="margin-left:8px; font-size:13px; color:#337ab7; text-decoration:none;">クリア</a>
                 <% } %>
             </form>
 
@@ -103,7 +68,7 @@
         </div>
 
         <% if (hasSearch) { %>
-        <p style="font-size:14px; margin:0 0 10px;">検索結果：<%= slips.size() %>件<%
+        <p style="font-size:14px; margin:0 0 10px;">検索結果：<%= total %>件<%
             if (!no.isEmpty()) { %>（伝票番号: <%= esc(no) %>）<% }
             if (!q.isEmpty()) { %>（キーワード: <%= esc(q) %>）<% }
         %></p>
@@ -113,8 +78,8 @@
         <table class="slip-table">
             <thead>
                 <tr>
-                    <th class="col-id sort-trigger" onclick="location.href='index.jsp?sortKey=id&order=<%= idNextOrder %><%= searchParams %>'">伝票番号<span class="sort-arrows"><%= idArrow %></span></th>
-                    <th class="col-date sort-trigger" onclick="location.href='index.jsp?sortKey=date&order=<%= dateNextOrder %><%= searchParams %>'">日付<span class="sort-arrows"><%= dateArrow %></span></th>
+                    <th class="col-id sort-trigger" onclick="location.href='list?sortKey=id&order=<%= idNextOrder %><%= searchParams %>'">伝票番号<span class="sort-arrows"><%= idArrow %></span></th>
+                    <th class="col-date sort-trigger" onclick="location.href='list?sortKey=date&order=<%= dateNextOrder %><%= searchParams %>'">日付<span class="sort-arrows"><%= dateArrow %></span></th>
                     <th class="col-partner">取引先（購入先）</th>
                     <th class="col-description">購入物</th>
                     <th class="col-amount col-amount-th">金額</th>
@@ -122,8 +87,7 @@
                 </tr>
             </thead>
             <tbody>
-                <!-- 明細データ（ストアから取得） -->
-                <% if (slips.isEmpty()) { %>
+                <% if (pageSlips.isEmpty()) { %>
                 <tr>
                     <td colspan="7">伝票がありません。「新規登録」から追加してください。</td>
                 </tr>
@@ -152,15 +116,15 @@
         <% if (total > 0) { %>
         <div class="pagination">
             <% if (pageNo > 1) { %>
-                <a class="page-btn" href="index.jsp?<%= navParams %>&page=1">&laquo; 最初</a>
-                <a class="page-btn" href="index.jsp?<%= navParams %>&page=<%= pageNo - 1 %>">&lsaquo; 前へ</a>
+                <a class="page-btn" href="list?<%= navParams %>&page=1">&laquo; 最初</a>
+                <a class="page-btn" href="list?<%= navParams %>&page=<%= pageNo - 1 %>">&lsaquo; 前へ</a>
             <% } else { %>
                 <span class="page-btn disabled">&laquo; 最初</span>
                 <span class="page-btn disabled">&lsaquo; 前へ</span>
             <% } %>
 
             <!-- ページ番号を直接入力して移動 -->
-            <form method="get" action="index.jsp" class="page-jump">
+            <form method="get" action="list" class="page-jump">
                 <input type="hidden" name="sortKey" value="<%= sortKey %>">
                 <input type="hidden" name="order" value="<%= order %>">
                 <% if (!q.isEmpty()) { %><input type="hidden" name="q" value="<%= esc(q) %>"><% } %>
@@ -171,8 +135,8 @@
             </form>
 
             <% if (pageNo < totalPages) { %>
-                <a class="page-btn" href="index.jsp?<%= navParams %>&page=<%= pageNo + 1 %>">次へ &rsaquo;</a>
-                <a class="page-btn" href="index.jsp?<%= navParams %>&page=<%= totalPages %>">最後 &raquo;</a>
+                <a class="page-btn" href="list?<%= navParams %>&page=<%= pageNo + 1 %>">次へ &rsaquo;</a>
+                <a class="page-btn" href="list?<%= navParams %>&page=<%= totalPages %>">最後 &raquo;</a>
             <% } else { %>
                 <span class="page-btn disabled">次へ &rsaquo;</span>
                 <span class="page-btn disabled">最後 &raquo;</span>

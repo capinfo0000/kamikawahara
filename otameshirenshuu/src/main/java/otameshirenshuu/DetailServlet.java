@@ -27,8 +27,8 @@ public class DetailServlet extends HttpServlet {
 			if (id != null) {
 				store.delete(id);
 			}
-			// 削除後は、元の一覧（同じページ・並び順・検索条件）へ戻す
-			response.sendRedirect(request.getContextPath() + "/index.jsp" + listQuery(request));
+			// 削除後は、元の一覧（同じページ・並び順・検索条件）へ戻す（処理担当の /list 経由）
+			response.sendRedirect(request.getContextPath() + "/list" + listQuery(request));
 			return;
 		}
 
@@ -59,8 +59,8 @@ public class DetailServlet extends HttpServlet {
 		Integer id = parseIntOrNull(request.getParameter("id"));
 		Slip slip = (id != null) ? store.findById(id) : null;
 		if (slip == null) {
-			// 該当データがなければ一覧へ戻す
-			response.sendRedirect(request.getContextPath() + "/index.jsp");
+			// 該当データがなければ一覧へ戻す（処理担当の /list 経由）
+			response.sendRedirect(request.getContextPath() + "/list");
 			return;
 		}
 
