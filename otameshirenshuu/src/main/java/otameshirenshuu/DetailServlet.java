@@ -3,7 +3,9 @@ package otameshirenshuu;
 import java.io.IOException;
 import java.net.URLEncoder;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import javax.servlet.ServletException;
 import javax.servlet.annotation.WebServlet;
@@ -40,18 +42,11 @@ public class DetailServlet extends HttpServlet {
 
 		if ("new".equals(mode)) {
 			// 新規登録：最初は空白5行
-			List<Entry> detailList = new ArrayList<>();
+			List<Entry> entries = new ArrayList<>();
 			for (int i = 0; i < 5; i++) {
-				detailList.add(new Entry());
+				entries.add(new Entry());
 			}
-			request.setAttribute("currentMode", "new");
-			request.setAttribute("slipId", null);
-			request.setAttribute("slipDate", "");
-			request.setAttribute("partnerName", "");
-			request.setAttribute("description", "");
-			request.setAttribute("note", "");
-			request.setAttribute("detailList", detailList);
-			request.getRequestDispatcher("/detail.jsp").forward(request, response);
+			forwardDetail(request, response, "new", null, "", "", "", "", entries, null);
 			return;
 		}
 
@@ -64,9 +59,9 @@ public class DetailServlet extends HttpServlet {
 			return;
 		}
 
-		request.setAttribute("currentMode", "edit".equals(mode) ? "edit" : "view");
-		setSlipAttributes(request, slip);
-		request.getRequestDispatcher("/detail.jsp").forward(request, response);
+		String viewMode = "edit".equals(mode) ? "edit" : "view";
+		forwardDetail(request, response, viewMode, slip.getId(), slip.getDate(),
+				slip.getPartnerName(), slip.getDescription(), slip.getNote(), slip.getEntries(), null);
 	}
 
 	@Override
@@ -150,16 +145,10 @@ public class DetailServlet extends HttpServlet {
 
 		// エラーがあれば入力内容を保持したまま編集画面へ戻す
 		if (!errorMessages.isEmpty()) {
-			request.setAttribute("errors", errorMessages);
-			request.setAttribute("currentMode", "edit");
-			request.setAttribute("slipId", id);
-			request.setAttribute("slipDate", slipDate);
-			request.setAttribute("partnerName", partnerName);
-			request.setAttribute("description", description);
-			request.setAttribute("note", note);
 			// 入力途中の行をそのまま返す（空白行も残して編集を継続できるようにする）
-			request.setAttribute("detailList", rebuildRows(debitSubjects, debitAmounts, creditSubjects, creditAmounts));
-			request.getRequestDispatcher("/detail.jsp").forward(request, response);
+			List<Entry> rebuilt = rebuildRows(debitSubjects, debitAmounts, creditSubjects, creditAmounts);
+			forwardDetail(request, response, "edit", id, slipDate, partnerName, description, note,
+					rebuilt, errorMessages);
 			return;
 		}
 
@@ -184,13 +173,76 @@ public class DetailServlet extends HttpServlet {
 		response.sendRedirect(request.getContextPath() + "/detail?mode=view&id=" + savedId);
 	}
 
-	private void setSlipAttributes(HttpServletRequest request, Slip slip) {
-		request.setAttribute("slipId", slip.getId());
-		request.setAttribute("slipDate", slip.getDate());
-		request.setAttribute("partnerName", slip.getPartnerName());
-		request.setAttribute("description", slip.getDescription());
-		request.setAttribute("note", slip.getNote());
-		request.setAttribute("detailList", slip.getEntries());
+	/**
+	 * 明細画面(detail.jsp)へ「表示用に整形済み」のデータを渡して転送する。
+	 * 合計の集計・金額の¥整形・日付整形・HTMLエスケープはすべてここで行い、
+	 * JSPは受け取った文字列を出すだけにする。
+	 */
+	private void forwardDetail(HttpServletRequest request, HttpServletResponse response,
+			String mode, Integer slipId, String dateRaw, String partner, String desc, String note,
+			List<Entry> entries, List<String> errors) throws ServletException, IOException {
+
+		boolean isView = "view".equals(mode);
+		if (dateRaw == null) {
+			dateRaw = "";
+		}
+
+		// 明細行を「表示用の文字列」に整形しつつ、合計を集計する
+		List<Map<String, String>> entryRows = new ArrayList<>();
+		int debitTotal = 0;
+		int creditTotal = 0;
+		for (Entry en : entries) {
+			int dv = en.getDebitValue();
+			int cv = en.getCreditValue();
+			debitTotal += dv;
+			creditTotal += cv;
+
+			Map<String, String> row = new HashMap<>();
+			row.put("debitSubject", esc(en.getDebitSubject()));
+			row.put("creditSubject", esc(en.getCreditSubject()));
+			// 閲覧は「¥1,000／空欄」、編集は入力欄の値「1,000／空欄」
+			row.put("debitAmount", isView ? viewYen(dv) : editAmount(dv));
+			row.put("creditAmount", isView ? viewYen(cv) : editAmount(cv));
+			entryRows.add(row);
+		}
+
+		request.setAttribute("currentMode", mode);
+		request.setAttribute("slipId", slipId);
+		request.setAttribute("slipDateRaw", esc(dateRaw));              // 入力欄(type=date)用
+		request.setAttribute("slipDateSlash", esc(dateRaw.replace("-", "/"))); // 閲覧表示用
+		request.setAttribute("partnerName", esc(partner));
+		request.setAttribute("description", esc(desc));
+		request.setAttribute("note", esc(note));
+		request.setAttribute("entryRows", entryRows);
+		request.setAttribute("debitTotalText", yenTotal(debitTotal));
+		request.setAttribute("creditTotalText", yenTotal(creditTotal));
+		if (errors != null) {
+			request.setAttribute("errors", errors);
+		}
+		request.getRequestDispatcher("/detail.jsp").forward(request, response);
+	}
+
+	// --- 表示用の整形ヘルパー ---
+	private static String esc(String v) {
+		if (v == null) {
+			return "";
+		}
+		return v.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\"", "&quot;");
+	}
+
+	/** 閲覧の金額。0は空欄、それ以外は ¥1,000。 */
+	private static String viewYen(int n) {
+		return n == 0 ? "" : "¥" + String.format("%,d", n);
+	}
+
+	/** 編集の入力欄の値。0は空欄、それ以外は 1,000（カンマ区切り）。 */
+	private static String editAmount(int n) {
+		return n == 0 ? "" : String.format("%,d", n);
+	}
+
+	/** 合計金額（0でも ¥0 と表示）。 */
+	private static String yenTotal(int n) {
+		return "¥" + String.format("%,d", n);
 	}
 
 	/** エラー時に、送信されたすべての行（空白行含む）を復元する。 */

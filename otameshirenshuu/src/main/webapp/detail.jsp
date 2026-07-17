@@ -1,48 +1,23 @@
 <%@ page contentType="text/html; charset=UTF-8" %>
-<%@ page import="java.util.*, otameshirenshuu.Entry" %>
-<%!
-	// 数字文字列を3桁区切りに整形（空なら空文字）
-	private String fmt(String v) {
-		if (v == null) return "";
-		String digits = v.replaceAll("[^0-9]", "");
-		if (digits.isEmpty()) return "";
-		return String.format("%,d", Long.parseLong(digits));
-	}
-	// 金額が空のときは ¥ を付けない（閲覧モード用）
-	private String yen(String v) {
-		String f = fmt(v);
-		return f.isEmpty() ? "" : "&yen;" + f;
-	}
-	private String esc(String v) {
-		if (v == null) return "";
-		return v.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\"", "&quot;");
-	}
-%>
+<%@ page import="java.util.*" %>
 <%
+	// このJSPは「表示」だけを担当する。整形・集計・エスケープは DetailServlet 側で済ませてある。
 	String currentMode = (String) request.getAttribute("currentMode");
 	if (currentMode == null) currentMode = "view";
 	boolean isView = "view".equals(currentMode);
 	boolean isNew  = "new".equals(currentMode);
 	boolean isEdit = "edit".equals(currentMode);
 
-	Integer slipId = (Integer) request.getAttribute("slipId");
-
-	String slipDate = (String) request.getAttribute("slipDate");
-	if (slipDate == null) slipDate = "";
-	String slipDateSlash = slipDate.replace("-", "/");
-
-	String partnerName = (String) request.getAttribute("partnerName");
-	if (partnerName == null) partnerName = "";
-
-	String description = (String) request.getAttribute("description");
-	if (description == null) description = "";
-
-	String note = (String) request.getAttribute("note");
-	if (note == null) note = "";
-
-	List<Entry> detailList = (List<Entry>) request.getAttribute("detailList");
-	if (detailList == null) detailList = new ArrayList<>();
-
+	Integer slipId       = (Integer) request.getAttribute("slipId");
+	String slipDateRaw   = (String) request.getAttribute("slipDateRaw");
+	String slipDateSlash = (String) request.getAttribute("slipDateSlash");
+	String partnerName   = (String) request.getAttribute("partnerName");
+	String description   = (String) request.getAttribute("description");
+	String note          = (String) request.getAttribute("note");
+	List<Map<String,String>> entryRows = (List<Map<String,String>>) request.getAttribute("entryRows");
+	if (entryRows == null) entryRows = new ArrayList<>();
+	String debitTotalText  = (String) request.getAttribute("debitTotalText");
+	String creditTotalText = (String) request.getAttribute("creditTotalText");
 	List<String> errors = (List<String>) request.getAttribute("errors");
 
 	String pageMod = isNew ? " is-new" : (isEdit ? " is-edit" : "");
@@ -53,16 +28,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>振替伝票明細</title>
-    <!-- CSSファイルの読み込み -->
     <link rel="stylesheet" href="detail-style.css">
 </head>
 <body>
 
     <div class="page-wrapper<%= pageMod %>">
 
-        <!-- 編集・新規モードでは、ヘッダー・明細・備考をすべて1つのformで囲む
-             （divの途中でformを開くとブラウザがformを早期に閉じ、明細の入力欄が
-               送信されなくなるため、page-wrapper直下でformを開く） -->
         <% if (!isView) { %>
         <form action="detail" method="POST" id="slip-form">
             <% if (isEdit && slipId != null) { %>
@@ -70,77 +41,62 @@
             <% } %>
         <% } %>
 
-        <!-- 上部ヘッダーエリア（基本情報とボタン） -->
         <div class="header-container">
-
-            <!-- 「伝票一覧に戻る」ボタン -->
             <div class="back-actions-group">
             	<% if (isView) { %>
-					<a href="index.jsp" class="btn-back">←伝票一覧</a>
+					<a href="list" class="btn-back">←伝票一覧</a>
 				<% } else { %>
-					<!-- 編集・新規モードの時は、一覧に戻らずポップアップを開く -->
 					<a href="#leave-popup" class="btn-back">←伝票一覧</a>
 				<% } %>
 
-            <!-- 日付と伝票番号の縦並びエリア -->
             	<div class="meta-info-group">
-
-					<!-- 日付 -->
                 	<div class="header-item item-date">
                     	日付
                     	<% if (isView) { %>
-                   	 		<span class="underline-text"><%= esc(slipDateSlash) %></span>
+                   	 		<span class="underline-text"><%= slipDateSlash %></span>
                			<% } else { %>
-               	    		<input type="date" name="slipDate" class="header-input" value="<%= esc(slipDate) %>">
+               	    		<input type="date" name="slipDate" class="header-input" value="<%= slipDateRaw %>">
                			<% } %>
                     </div>
-
-                    <!-- 伝票番号 -->
                 	<div class="header-item item-id">
                     	伝票番号
                     	<% if (!isNew && slipId != null) { %>
                     		<span class="underline-text"><%= slipId %></span>
                     	<% } else { %>
-                    		<!-- 新規登録は採番前なのでハイフン -->
                     		<span class="underline-text">-</span>
                     	<% } %>
                		</div>
             	</div>
             </div>
 
-            <!-- 取引先 -->
-	            <div class="header-item item-partner">
-	                取引先
-	                <% if (isView) { %>
-	                	<span class="underline-text partner-name"><%= esc(partnerName) %></span>
-	                <% } else { %>
-	                	<input type="text" name="partnerName" class="header-input partner-input" value="<%= esc(partnerName) %>">
-	                <% } %>
-	            </div>
+	        <div class="header-item item-partner">
+	            取引先
+	            <% if (isView) { %>
+	            	<span class="underline-text partner-name"><%= partnerName %></span>
+	            <% } else { %>
+	            	<input type="text" name="partnerName" class="header-input partner-input" value="<%= partnerName %>">
+	            <% } %>
+	        </div>
 
-        <!-- 購入物 -->
         	<div class="header-item item-description">
         		購入物
         		<% if (isView) { %>
-        			<span class="underline-text description-text"><%= esc(description) %></span>
+        			<span class="underline-text description-text"><%= description %></span>
         		<% } else { %>
-        			<input type="text" name="description" class="header-input description-input" value="<%= esc(description) %>">
+        			<input type="text" name="description" class="header-input description-input" value="<%= description %>">
         		<% } %>
         	</div>
 
-            <!-- 右上ボタンエリア -->
-	            <div class="button-group">
-	            <% if (isView) { %>
-	                <a href="detail?mode=edit&id=<%= slipId %>" class="btn btn-edit">編集</a>
-	                <a href="#delete-popup" class="btn btn-delete">削除</a>
-	            <% } else { %>
-	                <!-- 送信前に貸借一致チェック→登録確認ポップアップを出すため type="button" -->
-	                <button type="button" class="btn btn-save" onclick="tryRegister()">登録</button>
-	            <% } %>
-	            </div>
+	        <div class="button-group">
+	        <% if (isView) { %>
+	            <a href="detail?mode=edit&id=<%= slipId %>" class="btn btn-edit">編集</a>
+	            <a href="#delete-popup" class="btn btn-delete">削除</a>
+	        <% } else { %>
+	            <button type="button" class="btn btn-save" onclick="tryRegister()">登録</button>
+	        <% } %>
+	        </div>
         </div>
 
-        <!-- 振替伝票テーブル -->
         <table class="journal-table">
             <thead>
                 <tr>
@@ -152,98 +108,70 @@
                 </tr>
             </thead>
             <tbody id="entry-tbody">
-
-            	<%
-            		// 登録されている明細の数だけ行を表示し、あわせて合計を集計する
-            		int debitTotal = 0;
-            		int creditTotal = 0;
-            		for (Entry en : detailList) {
-            			String dSub = en.getDebitSubject();
-            			String dAmt = en.getDebitAmount();
-            			String cSub = en.getCreditSubject();
-            			String cAmt = en.getCreditAmount();
-            			debitTotal  += en.getDebitValue();
-            			creditTotal += en.getCreditValue();
-            	%>
-	                <tr class="entry-row">
-						<!-- 借方勘定科目 -->
-	                    <td class="col-subject">
-	                    	<% if (isView) { %>
-								<span class="view-mode"><%= esc(dSub) %></span>
-							<% } else { %>
-								<input type="text" name="debitSubject" class="input-field" value="<%= esc(dSub) %>">
-							<% } %>
-						</td>
-
-						<!-- 借方金額 -->
-	                    <td class="col-amount">
-	                    	<% if (isView) { %>
-								<span class="view-mode"><%= yen(dAmt) %></span>
-							<% } else { %>
-								<input type="text" name="debitAmount" class="input-field text-right" value="<%= fmt(dAmt) %>" oninput="recompute()">
-							<% } %>
-						</td>
-
-						<!-- 貸方勘定科目 -->
-	                    <td class="col-subject">
-	                    	<% if (isView) { %>
-								<span class="view-mode"><%= esc(cSub) %></span>
-							<% } else { %>
-								<input type="text" name="creditSubject" class="input-field" value="<%= esc(cSub) %>">
-							<% } %>
-						</td>
-
-						<!-- 貸方金額 -->
-	                    <td class="col-amount">
-	                    	<% if (isView) { %>
-								<span class="view-mode"><%= yen(cAmt) %></span>
-							<% } else { %>
-								<input type="text" name="creditAmount" class="input-field text-right" value="<%= fmt(cAmt) %>" oninput="recompute()">
-							<% } %>
-						</td>
-
-						<!-- 行削除（編集・新規モードのみ） -->
-						<% if (!isView) { %>
-						<td class="col-op">
-							<button type="button" class="btn-row-delete" onclick="removeRow(this)" title="この行を削除">×</button>
-						</td>
+                <% for (Map<String,String> e : entryRows) { %>
+                <tr class="entry-row">
+                    <td class="col-subject">
+                    	<% if (isView) { %>
+							<span class="view-mode"><%= e.get("debitSubject") %></span>
+						<% } else { %>
+							<input type="text" name="debitSubject" class="input-field" value="<%= e.get("debitSubject") %>">
 						<% } %>
-	                </tr>
+					</td>
+                    <td class="col-amount">
+                    	<% if (isView) { %>
+							<span class="view-mode"><%= e.get("debitAmount") %></span>
+						<% } else { %>
+							<input type="text" name="debitAmount" class="input-field text-right" value="<%= e.get("debitAmount") %>" oninput="recompute()">
+						<% } %>
+					</td>
+                    <td class="col-subject">
+                    	<% if (isView) { %>
+							<span class="view-mode"><%= e.get("creditSubject") %></span>
+						<% } else { %>
+							<input type="text" name="creditSubject" class="input-field" value="<%= e.get("creditSubject") %>">
+						<% } %>
+					</td>
+                    <td class="col-amount">
+                    	<% if (isView) { %>
+							<span class="view-mode"><%= e.get("creditAmount") %></span>
+						<% } else { %>
+							<input type="text" name="creditAmount" class="input-field text-right" value="<%= e.get("creditAmount") %>" oninput="recompute()">
+						<% } %>
+					</td>
+					<% if (!isView) { %>
+					<td class="col-op">
+						<button type="button" class="btn-row-delete" onclick="removeRow(this)" title="この行を削除">×</button>
+					</td>
+					<% } %>
+                </tr>
                 <% } %>
 
-                <!-- 合計行 -->
                 <tr class="total-row" id="total-row">
-					<!-- 借方合計金額エリア -->
                     <td class="col-subject">合計</td>
                     <td class="col-amount-total">
-						<span id="debit-total" class="<%= isView ? "view-mode" : "edit-mode" %>">&yen;<%= String.format("%,d", debitTotal) %></span>
+						<span id="debit-total" class="<%= isView ? "view-mode" : "edit-mode" %>"><%= debitTotalText %></span>
 					</td>
-
-					<!-- 貸方合計金額エリア -->
                     <td class="col-subject">合計</td>
                     <td class="col-amount-total">
-						<span id="credit-total" class="<%= isView ? "view-mode" : "edit-mode" %>">&yen;<%= String.format("%,d", creditTotal) %></span>
+						<span id="credit-total" class="<%= isView ? "view-mode" : "edit-mode" %>"><%= creditTotalText %></span>
 					</td>
 					<% if (!isView) { %><td class="col-op"></td><% } %>
                 </tr>
-
             </tbody>
         </table>
 
-        <!-- 行追加ボタンエリア（編集・新規モードのみ） -->
         <% if (!isView) { %>
         	<div class="add-row-container">
             	<button type="button" class="btn-add-row" onclick="addRow()">＋ 行を追加</button>
         	</div>
         <% } %>
 
-         <!-- 備考エリア（自由入力・デフォルト3行） -->
         <div class="note-container">
             <label for="note-text" class="note-label">備考：</label>
             <% if (isView) { %>
-            	<textarea id="note-text" class="note-textarea view-mode" rows="3" readonly><%= esc(note) %></textarea>
+            	<textarea id="note-text" class="note-textarea view-mode" rows="3" readonly><%= note %></textarea>
             <% } else { %>
-            	<textarea id="note-text-edit" name="note" class="note-textarea edit-mode" rows="3"><%= esc(note) %></textarea>
+            	<textarea id="note-text-edit" name="note" class="note-textarea edit-mode" rows="3"><%= note %></textarea>
             <% } %>
         </div>
 
@@ -273,7 +201,7 @@
 				<button type="button" class="popup-close error-close" onclick="closeErrorPopup()">❌</button>
 				<div class="error-mennage-container">
 					<% for (String err : errors) { %>
-						<p class="error-text"><%= esc(err) %></p>
+						<p class="error-text"><%= err %></p>
 					<% } %>
 				</div>
 				<div class="popup-btn-group" style="margin-top:20px;">
@@ -293,15 +221,13 @@
 						<p class="leave-text">よろしいですか？</p>
 					</div>
 					<div class="popup-btn-group">
-						<a href="index.jsp" class="popup-btn btn-ok-link">はい</a>
+						<a href="list" class="popup-btn btn-ok-link">はい</a>
 						<a href="#" class="popup-btn">いいえ</a>
 					</div>
 				</div>
 			</div>
-		<% } %>
 
-		<!-- 登録確認ポップアップ（合計一致を確認したうえで表示。文字は黒） -->
-		<% if (!isView) { %>
+			<!-- 登録確認ポップアップ（文字は黒） -->
 			<div id="register-popup" class="popup-overlay register-confirm-layout">
 				<div class="register-popup-box">
 					<button type="button" class="popup-close" onclick="closeRegisterPopup()">❌</button>
@@ -313,7 +239,7 @@
 				</div>
 			</div>
 
-			<!-- 貸借不一致ポップアップ（登録前チェックで表示） -->
+			<!-- 貸借不一致ポップアップ -->
 			<div id="mismatch-popup" class="popup-overlay mismatch-layout">
 				<div class="error-popup-box">
 					<button type="button" class="popup-close error-close" onclick="closeMismatchPopup()">❌</button>
@@ -329,13 +255,11 @@
 		<% } %>
 
 <script>
-// エラーポップアップを閉じる（背後の入力内容はそのまま残る）
-function closeErrorPopup() {
-	var p = document.getElementById('error-popup');
-	if (p) p.style.display = 'none';
-}
+// ---- 画面操作のためのJavaScript（行の追加・削除、合計の再計算、確認ポップアップ）----
+function closeErrorPopup() { var p = document.getElementById('error-popup'); if (p) p.style.display = 'none'; }
+function closeRegisterPopup() { var p = document.getElementById('register-popup'); if (p) p.style.display = 'none'; }
+function closeMismatchPopup() { var p = document.getElementById('mismatch-popup'); if (p) p.style.display = 'none'; }
 
-// 入力行を1行作る（編集・新規モードで「行を追加」に使用）
 function makeRow() {
 	var tr = document.createElement('tr');
 	tr.className = 'entry-row';
@@ -347,36 +271,21 @@ function makeRow() {
 		'<td class="col-op"><button type="button" class="btn-row-delete" onclick="removeRow(this)" title="この行を削除">×</button></td>';
 	return tr;
 }
-
-// 行を追加（合計行の直前に挿入）
 function addRow() {
-	var tbody = document.getElementById('entry-tbody');
-	var totalRow = document.getElementById('total-row');
-	tbody.insertBefore(makeRow(), totalRow);
+	document.getElementById('entry-tbody').insertBefore(makeRow(), document.getElementById('total-row'));
 }
-
-// 行を削除
 function removeRow(btn) {
 	var tr = btn.parentNode.parentNode;
 	tr.parentNode.removeChild(tr);
 	recompute();
 }
-
-function toNum(v) {
-	v = (v || '').replace(/[^0-9]/g, '');
-	return v === '' ? 0 : parseInt(v, 10);
-}
-
-// 借方・貸方の合計を集計して返す（合計行の表示も更新）
+function toNum(v) { v = (v || '').replace(/[^0-9]/g, ''); return v === '' ? 0 : parseInt(v, 10); }
 function recompute() {
 	var rows = document.querySelectorAll('#entry-tbody .entry-row');
 	var d = 0, c = 0;
 	rows.forEach(function (r) {
 		var ins = r.querySelectorAll('input');
-		if (ins.length >= 4) {
-			d += toNum(ins[1].value);
-			c += toNum(ins[3].value);
-		}
+		if (ins.length >= 4) { d += toNum(ins[1].value); c += toNum(ins[3].value); }
 	});
 	var de = document.getElementById('debit-total');
 	var ce = document.getElementById('credit-total');
@@ -384,31 +293,12 @@ function recompute() {
 	if (ce) ce.textContent = '¥' + c.toLocaleString();
 	return { debit: d, credit: c };
 }
-
-// 「登録」ボタン：まず貸借一致を確認し、一致していれば登録確認ポップアップを出す
 function tryRegister() {
 	var t = recompute();
-	if (t.debit !== t.credit) {
-		document.getElementById('mismatch-popup').style.display = 'flex';
-		return;
-	}
+	if (t.debit !== t.credit) { document.getElementById('mismatch-popup').style.display = 'flex'; return; }
 	document.getElementById('register-popup').style.display = 'flex';
 }
-
-// 登録確認ポップアップ「はい」：フォームを送信
-function submitSlip() {
-	document.getElementById('slip-form').submit();
-}
-
-function closeRegisterPopup() {
-	var p = document.getElementById('register-popup');
-	if (p) p.style.display = 'none';
-}
-
-function closeMismatchPopup() {
-	var p = document.getElementById('mismatch-popup');
-	if (p) p.style.display = 'none';
-}
+function submitSlip() { document.getElementById('slip-form').submit(); }
 </script>
 
 </body>
