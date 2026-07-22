@@ -7,7 +7,6 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
-import java.util.List;
 
 import otameshirenshuu.Slip.Entry; // 明細クラス（Slipの入れ子）を Entry の名前で使う
 
@@ -18,9 +17,11 @@ import otameshirenshuu.Slip.Entry; // 明細クラス（Slipの入れ子）を E
  *   ・テーブルの自動作成（初回や、消えてしまったとき）
  *   ・一覧の検索／並び替え、1件取得、登録／更新、削除
  *   ・画面表示用の小さな整形（金額を「¥1,000」にする等）
- * サーブレットは使いません。JSP から  new SlipDao()  して各メソッドを呼びます。
- * （以前は Db / SchemaInit / SlipStore / SlipDao / SlipListServlet に分かれていた
- *   ものを、分かりやすいようにこの1ファイルへまとめました）
+ * このクラスは「データ処理の専門家」です。画面まわりの受け付けは
+ *   SlipListServlet（一覧）／ DetailServlet（明細）が担当し、
+ *   そこから  new SlipDao()  して各メソッドを呼びます。
+ * （以前は Db / SchemaInit / SlipStore などに分かれていた処理を、
+ *   分かりやすいようにこの1ファイルへまとめています）
  * ============================================================================
  */
 public class SlipDao {
@@ -61,13 +62,13 @@ public class SlipDao {
 	// q  … 日付・取引先・購入物のキーワード
 	// no … 伝票番号。単一「5」／範囲「1~10」（〜 ～ - も可、片側省略も可）
 	// ========================================================================
-	public List<Slip> findFiltered(String q, String no, String sortKey, String order) {
+	public ArrayList<Slip> findFiltered(String q, String no, String sortKey, String order) {
 		// 並べる列と向き（想定外の値は既定にして安全に）
 		final String col = "date".equals(sortKey) ? "slip_date" : "id";
 		final String dir = "desc".equals(order) ? "DESC" : "ASC";
 
-		final List<String> conds = new ArrayList<>();  // WHEREの条件
-		final List<Object> params = new ArrayList<>(); // ?に入れる値
+		final ArrayList<String> conds = new ArrayList<>();  // WHEREの条件
+		final ArrayList<Object> params = new ArrayList<>(); // ?に入れる値
 		addNoCondition(conds, params, no);              // 伝票番号の条件
 		if (q != null && !q.trim().isEmpty()) {         // キーワードの条件（部分一致）
 			String like = "%" + q.trim() + "%";
@@ -84,7 +85,7 @@ public class SlipDao {
 		sql.append(" ORDER BY ").append(col).append(" ").append(dir).append(", id ").append(dir);
 
 		return run(() -> {
-			List<Slip> list = new ArrayList<>();
+			ArrayList<Slip> list = new ArrayList<>();
 			try (Connection c = getConnection();
 					PreparedStatement ps = c.prepareStatement(sql.toString())) {
 				for (int i = 0; i < params.size(); i++) {
@@ -144,11 +145,11 @@ public class SlipDao {
 	//  ・OKなら保存して伝票番号を返す／NGなら errors にメッセージを入れて -1 を返す
 	// ========================================================================
 	public int saveFromForm(Integer id, String date, String partner, String desc, String note,
-			String[] dSub, String[] dAmt, String[] cSub, String[] cAmt, List<String> errors) {
+			String[] dSub, String[] dAmt, String[] cSub, String[] cAmt, ArrayList<String> errors) {
 
 		boolean formatError = false;
-		List<String[]> debitSides = new ArrayList<>();  // {科目, 金額(数字のみ)}
-		List<String[]> creditSides = new ArrayList<>();
+		ArrayList<String[]> debitSides = new ArrayList<>();  // {科目, 金額(数字のみ)}
+		ArrayList<String[]> creditSides = new ArrayList<>();
 
 		int rowCount = maxLen(dSub, dAmt, cSub, cAmt);
 		for (int i = 0; i < rowCount; i++) {
@@ -166,7 +167,7 @@ public class SlipDao {
 		}
 
 		// 詰めた借方・貸方を上から突き合わせて明細行を作る＋合計
-		List<Entry> entries = new ArrayList<>();
+		ArrayList<Entry> entries = new ArrayList<>();
 		int debitTotal = 0, creditTotal = 0;
 		int rows = Math.max(debitSides.size(), creditSides.size());
 		for (int i = 0; i < rows; i++) {
@@ -200,8 +201,8 @@ public class SlipDao {
 	}
 
 	/** 入力エラー時に、送信された全行（空白行も含む）を復元して画面へ戻す用。 */
-	public List<Entry> rebuildRows(String[] dSub, String[] dAmt, String[] cSub, String[] cAmt) {
-		List<Entry> list = new ArrayList<>();
+	public ArrayList<Entry> rebuildRows(String[] dSub, String[] dAmt, String[] cSub, String[] cAmt) {
+		ArrayList<Entry> list = new ArrayList<>();
 		int n = maxLen(dSub, dAmt, cSub, cAmt);
 		for (int i = 0; i < n; i++) {
 			list.add(new Entry(at(dSub, i), digits(at(dAmt, i)), at(cSub, i), digits(at(cAmt, i))));
@@ -361,7 +362,7 @@ public class SlipDao {
 		ps.setString(4, nz(slip.getNote()));
 	}
 
-	private void insertEntries(Connection c, int slipId, List<Entry> entries) throws SQLException {
+	private void insertEntries(Connection c, int slipId, ArrayList<Entry> entries) throws SQLException {
 		try (PreparedStatement ps = c.prepareStatement(
 				"INSERT INTO entry(slip_id,line_no,debit_subject,debit_amount,credit_subject,credit_amount) "
 				+ "VALUES(?,?,?,?,?,?)")) {
@@ -388,7 +389,7 @@ public class SlipDao {
 	}
 
 	/** 伝票番号（単一/範囲）を WHERE 条件に変換して追加。 */
-	private void addNoCondition(List<String> conds, List<Object> params, String no) {
+	private void addNoCondition(ArrayList<String> conds, ArrayList<Object> params, String no) {
 		if (no == null || no.trim().isEmpty()) return;
 		String t = no.trim().replace('～', '~').replace('〜', '~')
 				.replace('－', '~').replace('−', '~').replace('-', '~');

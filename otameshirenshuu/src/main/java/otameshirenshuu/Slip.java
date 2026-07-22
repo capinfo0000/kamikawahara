@@ -1,7 +1,6 @@
 package otameshirenshuu;
 
 import java.util.ArrayList;
-import java.util.List;
 
 /*
  * 「データの入れ物」クラス。
@@ -18,7 +17,7 @@ public class Slip {
 	private String partnerName = ""; // 取引先
 	private String description = ""; // 購入物
 	private String note = "";        // 備考
-	private List<Entry> entries = new ArrayList<>(); // 明細行の一覧
+	private ArrayList<Entry> entries = new ArrayList<>(); // 明細行の一覧
 
 	// --- getter / setter（値の読み書き口）---
 	public int getId() { return id; }
@@ -36,8 +35,8 @@ public class Slip {
 	public String getNote() { return note; }
 	public void setNote(String note) { this.note = note; }
 
-	public List<Entry> getEntries() { return entries; }
-	public void setEntries(List<Entry> entries) { this.entries = entries; }
+	public ArrayList<Entry> getEntries() { return entries; }
+	public void setEntries(ArrayList<Entry> entries) { this.entries = entries; }
 
 	/** 借方金額の合計。明細を1行ずつ足す。一覧の「金額」列に使う。 */
 	public int getTotal() {
