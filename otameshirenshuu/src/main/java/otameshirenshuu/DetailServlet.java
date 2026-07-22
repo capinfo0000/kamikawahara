@@ -29,7 +29,6 @@ import otameshirenshuu.Slip.Entry; // 明細クラス（Slipの入れ子）を E
 public class DetailServlet extends HttpServlet {
 
 	// GET：表示（新規/閲覧/編集）と削除
-	@Override
 	protected void doGet(HttpServletRequest request, HttpServletResponse response)
 			throws ServletException, IOException {
 
@@ -69,7 +68,6 @@ public class DetailServlet extends HttpServlet {
 	}
 
 	// POST：登録・更新（フォームの「登録」ボタンから送られてくる）
-	@Override
 	protected void doPost(HttpServletRequest request, HttpServletResponse response)
 			throws ServletException, IOException {
 

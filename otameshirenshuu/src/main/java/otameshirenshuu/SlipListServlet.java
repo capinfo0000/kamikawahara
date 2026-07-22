@@ -30,7 +30,6 @@ public class SlipListServlet extends HttpServlet {
 	private static final int PAGE_SIZE = 30; // 1ページに表示する件数
 
 	// GET でアクセスされたとき（一覧表示・削除リンク・ソート・ページ移動 すべて GET）
-	@Override
 	protected void doGet(HttpServletRequest request, HttpServletResponse response)
 			throws ServletException, IOException {
 
