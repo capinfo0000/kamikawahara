@@ -1,22 +1,16 @@
 <%@ page contentType="text/html; charset=UTF-8" %>
-<%@ page import="java.util.*, otameshirenshuu.Slip, otameshirenshuu.SlipDao" %>
+<%@ page import="java.util.*, otameshirenshuu.Slip, otameshirenshuu.SlipDao, otameshirenshuu.SlipPage" %>
 <%
 	/* ========================================================================
 	 * 【一覧画面（表示だけ担当）】
-	 *   検索・並び替え・ページングの計算は SlipListServlet（/list）で済ませてあり、
-	 *   結果は HashMap（連想配列）1つにまとめて request に載って届く。
-	 *   このJSPは、その HashMap から値を取り出して表を組み立てるだけ。
+	 *   検索・並び替え・ページング・削除の処理は SlipPage.list(...) にまとめてある。
+	 *   ここでは、その結果（HashMap）を受け取って表を組み立てるだけ。
 	 * ====================================================================== */
 
-	// SlipListServlet から渡された HashMap を受け取る
-	HashMap<String, Object> data = (HashMap<String, Object>) request.getAttribute("data");
-
-	// もし直接 index.jsp を開かれてデータが無ければ、処理担当の /list へ回す
-	if (data == null) {
-		String qs = request.getQueryString();
-		response.sendRedirect("list" + (qs == null ? "" : "?" + qs));
-		return;
-	}
+	// 下ごしらえを別クラスに任せる（サーブレットではなく普通のメソッド呼び出し）
+	HashMap<String, Object> data = SlipPage.list(request, response);
+	// 削除などで別URLへ飛ばした場合は null が返るので、ここで表示を止める
+	if (data == null) return;
 
 	// HashMap から、この画面で使う値を取り出す（キー名で1つずつ get する）
 	ArrayList<Slip> pageSlips = (ArrayList<Slip>) data.get("pageSlips");
@@ -47,9 +41,9 @@
     <div class="page-wrapper">
         <h1>伝票一覧</h1>
 
-        <!-- 検索と新規登録（検索は /list へGETで送る） -->
+        <!-- 検索と新規登録 -->
         <div class="actions-container">
-            <form class="search-area" method="get" action="list">
+            <form class="search-area" method="get" action="index.jsp">
                 <input type="text" name="no" value="<%= SlipDao.esc(no) %>" class="no-search-box" placeholder="伝票番号（例: 5 または 1~10）">
                 <div class="search-box">
                     <input type="text" name="q" value="<%= SlipDao.esc(q) %>" placeholder="検索（日付、取引先、購入物）">
@@ -58,10 +52,10 @@
                 <input type="hidden" name="order" value="<%= order %>">
                 <button type="submit" class="search-exec-btn">検索</button>
                 <% if (hasSearch) { %>
-                    <a href="list?sortKey=<%= sortKey %>&order=<%= order %>" class="search-clear-btn" style="margin-left:8px; font-size:13px; color:#337ab7; text-decoration:none;">クリア</a>
+                    <a href="index.jsp?sortKey=<%= sortKey %>&order=<%= order %>" class="search-clear-btn" style="margin-left:8px; font-size:13px; color:#337ab7; text-decoration:none;">クリア</a>
                 <% } %>
             </form>
-            <a href="detail?mode=new" class="register-btn" style="text-decoration:none; display:inline-block;">新規登録</a>
+            <a href="detail.jsp?mode=new" class="register-btn" style="text-decoration:none; display:inline-block;">新規登録</a>
         </div>
 
         <% if (hasSearch) { %>
@@ -71,12 +65,12 @@
         %></p>
         <% } %>
 
-        <!-- 伝票テーブル（見出しをクリックすると /list へ並び替えを頼む） -->
+        <!-- 伝票テーブル -->
         <table class="slip-table">
             <thead>
                 <tr>
-                    <th class="col-id sort-trigger" onclick="location.href='list?sortKey=id&order=<%= idNextOrder %><%= searchParams %>'">伝票番号<span class="sort-arrows"><%= idArrow %></span></th>
-                    <th class="col-date sort-trigger" onclick="location.href='list?sortKey=date&order=<%= dateNextOrder %><%= searchParams %>'">日付<span class="sort-arrows"><%= dateArrow %></span></th>
+                    <th class="col-id sort-trigger" onclick="location.href='index.jsp?sortKey=id&order=<%= idNextOrder %><%= searchParams %>'">伝票番号<span class="sort-arrows"><%= idArrow %></span></th>
+                    <th class="col-date sort-trigger" onclick="location.href='index.jsp?sortKey=date&order=<%= dateNextOrder %><%= searchParams %>'">日付<span class="sort-arrows"><%= dateArrow %></span></th>
                     <th class="col-partner">取引先（購入先）</th>
                     <th class="col-description">購入物</th>
                     <th class="col-amount col-amount-th">金額</th>
@@ -94,9 +88,9 @@
                     <td class="col-partner"><%= SlipDao.esc(s.getPartnerName()) %></td>
                     <td class="col-description"><%= SlipDao.esc(s.getDescription()) %></td>
                     <td class="col-amount col-amount-td"><%= SlipDao.yen(s.getTotal()) %></td>
-                    <td class="col-detail"><a href="detail?mode=view&id=<%= s.getId() %>" class="detail-link">明細</a></td>
+                    <td class="col-detail"><a href="detail.jsp?mode=view&id=<%= s.getId() %>" class="detail-link">明細</a></td>
                     <td class="col-delete-cell">
-                        <a href="list?action=delete&id=<%= s.getId() %>&sortKey=<%= sortKey %>&order=<%= order %>&page=<%= pageNo %><%= searchParams %>"
+                        <a href="index.jsp?action=delete&id=<%= s.getId() %>&sortKey=<%= sortKey %>&order=<%= order %>&page=<%= pageNo %><%= searchParams %>"
                            class="btn-list-delete" style="text-decoration:none; display:inline-block; padding:2px 10px;"
                            onclick="return confirm('伝票番号 <%= s.getId() %> を削除しますか？');">削除</a>
                     </td>
@@ -105,18 +99,18 @@
             </tbody>
         </table>
 
-        <!-- ページネーション（前後移動・番号入力もすべて /list へ） -->
+        <!-- ページネーション -->
         <% if (total > 0) { %>
         <div class="pagination">
             <% if (pageNo > 1) { %>
-                <a class="page-btn" href="list?<%= navParams %>&page=1">&laquo; 最初</a>
-                <a class="page-btn" href="list?<%= navParams %>&page=<%= pageNo - 1 %>">&lsaquo; 前へ</a>
+                <a class="page-btn" href="index.jsp?<%= navParams %>&page=1">&laquo; 最初</a>
+                <a class="page-btn" href="index.jsp?<%= navParams %>&page=<%= pageNo - 1 %>">&lsaquo; 前へ</a>
             <% } else { %>
                 <span class="page-btn disabled">&laquo; 最初</span>
                 <span class="page-btn disabled">&lsaquo; 前へ</span>
             <% } %>
 
-            <form method="get" action="list" class="page-jump">
+            <form method="get" action="index.jsp" class="page-jump">
                 <input type="hidden" name="sortKey" value="<%= sortKey %>">
                 <input type="hidden" name="order" value="<%= order %>">
                 <% if (!q.isEmpty())  { %><input type="hidden" name="q"  value="<%= SlipDao.esc(q) %>"><% } %>
@@ -127,8 +121,8 @@
             </form>
 
             <% if (pageNo < totalPages) { %>
-                <a class="page-btn" href="list?<%= navParams %>&page=<%= pageNo + 1 %>">次へ &rsaquo;</a>
-                <a class="page-btn" href="list?<%= navParams %>&page=<%= totalPages %>">最後 &raquo;</a>
+                <a class="page-btn" href="index.jsp?<%= navParams %>&page=<%= pageNo + 1 %>">次へ &rsaquo;</a>
+                <a class="page-btn" href="index.jsp?<%= navParams %>&page=<%= totalPages %>">最後 &raquo;</a>
             <% } else { %>
                 <span class="page-btn disabled">次へ &rsaquo;</span>
                 <span class="page-btn disabled">最後 &raquo;</span>

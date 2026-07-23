@@ -1,22 +1,16 @@
 <%@ page contentType="text/html; charset=UTF-8" %>
-<%@ page import="java.util.*, otameshirenshuu.Slip, otameshirenshuu.Slip.Entry, otameshirenshuu.SlipDao" %>
+<%@ page import="java.util.*, otameshirenshuu.Slip, otameshirenshuu.Slip.Entry, otameshirenshuu.SlipDao, otameshirenshuu.SlipPage" %>
 <%
 	/* ========================================================================
 	 * 【明細画面（表示だけ担当）】
-	 *   閲覧/編集/新規/削除/登録の処理は DetailServlet（/detail）で済ませてあり、
-	 *   表示に必要な値は HashMap（連想配列）1つにまとめて request に載って届く。
-	 *   このJSPは、その HashMap から値を取り出して画面を組み立てるだけ。
+	 *   閲覧/編集/新規/削除/登録の処理は SlipPage.detail(...) にまとめてある。
+	 *   ここでは、その結果（HashMap）を受け取って画面を組み立てるだけ。
 	 * ====================================================================== */
 
-	// DetailServlet から渡された HashMap を受け取る
-	HashMap<String, Object> data = (HashMap<String, Object>) request.getAttribute("data");
-
-	// 直接 detail.jsp を開かれてデータが無ければ、処理担当の /detail へ回す
-	if (data == null) {
-		String qs = request.getQueryString();
-		response.sendRedirect("detail" + (qs == null ? "?mode=new" : "?" + qs));
-		return;
-	}
+	// 下ごしらえを別クラスに任せる（サーブレットではなく普通のメソッド呼び出し）
+	HashMap<String, Object> data = SlipPage.detail(request, response);
+	// 削除や登録成功で別URLへ飛ばした場合は null が返るので、ここで表示を止める
+	if (data == null) return;
 
 	// HashMap から、この画面で使う値を取り出す
 	boolean isView = (Boolean) data.get("isView");
@@ -46,7 +40,7 @@
 
         <!-- 編集・新規のときは、入力欄全体を1つのformで囲む（送信先は /detail のPOST） -->
         <% if (!isView) { %>
-        <form action="detail" method="POST" id="slip-form">
+        <form action="detail.jsp" method="POST" id="slip-form">
             <% if (isEdit && slipId != null) { %>
             <input type="hidden" name="id" value="<%= slipId %>">
             <% } %>
@@ -55,7 +49,7 @@
         <div class="header-container">
             <div class="back-actions-group">
             	<% if (isView) { %>
-					<a href="list" class="btn-back">←伝票一覧</a>
+					<a href="index.jsp" class="btn-back">←伝票一覧</a>
 				<% } else { %>
 					<a href="#leave-popup" class="btn-back">←伝票一覧</a>
 				<% } %>
@@ -100,7 +94,7 @@
 
 	        <div class="button-group">
 	        <% if (isView) { %>
-	            <a href="detail?mode=edit&id=<%= slipId %>" class="btn btn-edit">編集</a>
+	            <a href="detail.jsp?mode=edit&id=<%= slipId %>" class="btn btn-edit">編集</a>
 	            <a href="#delete-popup" class="btn btn-delete">削除</a>
 	        <% } else { %>
 	            <button type="button" class="btn btn-save" onclick="tryRegister()">登録</button>
@@ -195,11 +189,11 @@
         <% if (isView && slipId != null) { %>
         <div id="delete-popup" class="popup-overlay delete-layout">
             <div class="delete-popup-box">
-                <a href="detail?mode=view&id=<%= slipId %>" class="popup-close delete-popup-close">❌</a>
+                <a href="detail.jsp?mode=view&id=<%= slipId %>" class="popup-close delete-popup-close">❌</a>
                 <p class="popup-title">この伝票を<span class="text-danger">削除</span>しますか？</p>
                 <div class="popup-btn-group">
-                    <a href="detail?action=delete&id=<%= slipId %>" class="popup-btn btn-yes">はい</a>
-                    <a href="detail?mode=view&id=<%= slipId %>" class="popup-btn">いいえ</a>
+                    <a href="detail.jsp?action=delete&id=<%= slipId %>" class="popup-btn btn-yes">はい</a>
+                    <a href="detail.jsp?mode=view&id=<%= slipId %>" class="popup-btn">いいえ</a>
                 </div>
             </div>
         </div>
@@ -232,7 +226,7 @@
 						<p class="leave-text">よろしいですか？</p>
 					</div>
 					<div class="popup-btn-group">
-						<a href="list" class="popup-btn btn-ok-link">はい</a>
+						<a href="index.jsp" class="popup-btn btn-ok-link">はい</a>
 						<a href="#" class="popup-btn">いいえ</a>
 					</div>
 				</div>
