@@ -19,7 +19,7 @@ public class Slip {
 	private String note = "";        // 備考
 	private ArrayList<Entry> entries = new ArrayList<>(); // 明細行の一覧
 
-	// --- getter / setter（値の読み書き口）---
+	// --- getter / setter（値の読み書き口。get=取り出す、set=入れる。中身は代入だけ）---
 	public int getId() { return id; }
 	public void setId(int id) { this.id = id; }
 
@@ -38,7 +38,8 @@ public class Slip {
 	public ArrayList<Entry> getEntries() { return entries; }
 	public void setEntries(ArrayList<Entry> entries) { this.entries = entries; }
 
-	/** 借方金額の合計。明細を1行ずつ足す。一覧の「金額」列に使う。 */
+	// ===== 【getTotal】この伝票の借方金額の合計を返すメソッド（一覧の「金額」列に使う）=====
+	//   明細を1行ずつ見て、借方金額を足し合わせるだけ。
 	public int getTotal() {
 		int sum = 0;
 		for (Entry e : entries) {
@@ -58,9 +59,11 @@ public class Slip {
 		private String creditSubject = ""; // 貸方勘定科目
 		private String creditAmount = "";  // 貸方金額
 
+		// 引数なしのコンストラクタ（空の1行を作るとき用。新規登録の空欄5行など）
 		public Entry() {
 		}
 
+		// 4項目をまとめて受け取って作るコンストラクタ（DBから読んだ行を復元するとき等）
 		public Entry(String debitSubject, String debitAmount, String creditSubject, String creditAmount) {
 			this.debitSubject = debitSubject;
 			this.debitAmount = debitAmount;
@@ -68,6 +71,7 @@ public class Slip {
 			this.creditAmount = creditAmount;
 		}
 
+		// --- getter / setter（値の読み書き口）---
 		public String getDebitSubject() { return debitSubject; }
 		public void setDebitSubject(String v) { this.debitSubject = v; }
 
@@ -80,13 +84,13 @@ public class Slip {
 		public String getCreditAmount() { return creditAmount; }
 		public void setCreditAmount(String v) { this.creditAmount = v; }
 
-		/** 借方金額を数値(int)にして返す（空欄は0）。合計計算などに使う。 */
+		// ===== 【getDebitValue】借方金額を数値(int)にして返すメソッド（空欄は0。合計計算に使う）=====
 		public int getDebitValue() { return toInt(debitAmount); }
 
-		/** 貸方金額を数値(int)にして返す（空欄は0）。 */
+		// ===== 【getCreditValue】貸方金額を数値(int)にして返すメソッド（空欄は0）=====
 		public int getCreditValue() { return toInt(creditAmount); }
 
-		/** 文字列を数値に変換（数字以外は無視。空なら0）。 */
+		// ===== 【toInt】文字列を数値に変換するメソッド（数字以外は無視。空なら0）=====
 		private static int toInt(String s) {
 			if (s == null) return 0;
 			String digits = s.replaceAll("[^0-9]", "");
