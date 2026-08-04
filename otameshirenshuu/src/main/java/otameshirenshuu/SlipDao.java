@@ -1,7 +1,6 @@
 package otameshirenshuu;
 
 import java.sql.Connection;        // DBとの接続を表す
-import java.sql.DriverManager;     // 接続を作ってくれる係
 import java.sql.PreparedStatement; // 「?」付きの安全なSQLを実行する道具
 import java.sql.ResultSet;         // SELECTの結果（表）を1行ずつ読む道具
 import java.sql.SQLException;      // DB処理で起きる例外（エラー）
@@ -13,21 +12,23 @@ import otameshirenshuu.Slip.Entry; // 明細クラス（Slipの入れ子）を E
 /*
  * ============================================================================
  * 【SlipDao】= 「伝票データの処理係」クラス
- *   DBへの接続・テーブル作成・検索・登録・削除・表示整形を、この1つで担当します。
- *   画面ごとの受け付け（入力の読み取り等）は SlipPage が行い、そこから
- *   new SlipDao() して、下の各メソッドを呼び出します。サーブレットは使いません。
+ *   テーブル作成・検索・登録・削除・入力チェック・表示整形を、この1つで担当します。
+ *   DBへの「接続」だけは Db クラスに任せます（接続先の設定は Db に集約）。
+ *   画面ごとの受け付け（入力の読み取り等）は SlipList と DetailList が行い、
+ *   そこから new SlipDao() して、下の各メソッドを呼び出します。
  *
  *   ◆メソッド一覧（何をするメソッドかの早見表）◆
  *     ・SlipDao()      … コンストラクタ。使い始めにテーブルを用意する
  *     ・findFiltered() … 一覧を「検索＋並び替え」して取り出す
  *     ・findById()     … 伝票を1件だけ取り出す
  *     ・delete()       … 伝票を1件削除する
- *     ・saveFromForm() … 画面入力を検査して、OKなら登録／更新する
+ *     ・buildEntries() … 入力を検査して明細行に組み立てる（空行は詰める）
+ *     ・saveFromForm() … buildEntries で検査し、OKなら登録／更新する
  *     ・rebuildRows()  … 入力エラー時に、打ち込んだ行をそのまま復元する
  *     ・yen()/yenOrBlank()/amount()/slash()/esc() … 表示用の文字列整形（JSPも使う）
  *     ・save()         … 実際にDBへ書き込む（新規INSERT／更新UPDATE）
  *     ・ensureSchema() … DBとテーブルが無ければ作る
- *     ・getConnection()… DB接続を1本もらう
+ *     ・getConnection()… DB接続を1本もらう（Db 経由）
  *     ・readSlip()     … SELECT結果の1行＋明細を Slip に組み立てる
  *     ・bindHeader()   … 伝票の見出し4項目をSQLの「?」に流し込む
  *     ・exec()         … 「id=?」だけの単純なSQLを実行する
@@ -37,33 +38,12 @@ import otameshirenshuu.Slip.Entry; // 明細クラス（Slipの入れ子）を E
  */
 public class SlipDao {
 
-	// ---- 接続設定（XAMPPのMySQL/MariaDBの初期値）----
-	private static String url =        // ← 使うDB「otameshirenshuu」への接続先
-			"jdbc:mariadb://localhost:3306/otameshirenshuu?useUnicode=true&characterEncoding=utf8";
-	private static String serverUrl =  // ← DBを作るとき用（DB名を付けない接続先）
-			"jdbc:mariadb://localhost:3306/?useUnicode=true&characterEncoding=utf8";
-	private static String user = "root"; // XAMPPの初期ユーザー
-	private static String password = ""; // XAMPPの初期パスワード（空）
-
 	// DB処理に失敗したときに見せるメッセージ（同じ文を何度も書かないよう定数にまとめる）
 	private static final String DB_ERROR =
 			"データベース処理に失敗しました。XAMPPのMySQL(MariaDB)が起動しているか確認してください: ";
 
-	// クラスが最初に読み込まれた時に1回だけ動く初期化ブロック。ドライバを登録する。
-	static {
-		try {
-			Class.forName("org.mariadb.jdbc.Driver"); // jarは WEB-INF/lib にある
-		} catch (Throwable ignore) {
-		}
-	}
-
-	// ===== 【configure】テスト用に接続先を差し替えるメソッド（普段のアプリでは使わない）=====
-	public static void configure(String u, String usr, String pw) {
-		url = u; user = usr; password = pw;
-	}
-
 	// ===== 【SlipDao()】コンストラクタ：使い始めるときにテーブルが無ければ作るメソッド =====
-	//   SlipPage が画面ごとに new SlipDao() するので、ここが毎回呼ばれる＝
+	//   SlipList／DetailList が画面ごとに new SlipDao() するので毎回呼ばれる＝
 	//   もしDBが消えても次のアクセスで作り直され、勝手に復活する仕組み。
 	public SlipDao() {
 		try {
@@ -153,14 +133,22 @@ public class SlipDao {
 		}
 	}
 
-	// ===== 【saveFromForm】画面入力を検査して、OKなら登録／更新するメソッド =====
-	//   ・借方／貸方を「列ごと」に、入力のある行だけ上へ詰める
-	//   ・金額の書式・貸借の一致・明細1行以上、をチェック
-	//   ・OK → 保存して伝票番号を返す ／ NG → errors に理由を入れて -1 を返す
-	public int saveFromForm(Integer id, String date, String partner, String desc, String note,
+	// ===== 【buildEntries】入力を検査して明細行に組み立てるメソッド（保存はしない）=====
+	//   ・必須項目（日付・取引先・購入物）が空でないか
+	//   ・金額に半角数字以外が入っていないか
+	//   ・借方／貸方を「列ごと」に、入力のある行だけ上へ詰める（＝無駄な空白行を消す）
+	//   ・明細が1行以上あるか／借方と貸方の合計が一致するか
+	//   問題があれば errors にメッセージを足す。戻り値は「詰めたあとの明細行」。
+	//   ※ 確認画面のプレビュー用にも、保存前チェック用にも、この1つを使う。
+	public ArrayList<Entry> buildEntries(String date, String partner, String desc,
 			String[] dSub, String[] dAmt, String[] cSub, String[] cAmt, ArrayList<String> errors) {
 
-		boolean formatError = false;                     // 金額に数字以外が混ざっていたか
+		// (0) 必須の入力欄が空白でないか
+		if (nz(date).trim().isEmpty())    errors.add("日付を入力してください。");
+		if (nz(partner).trim().isEmpty()) errors.add("取引先を入力してください。");
+		if (nz(desc).trim().isEmpty())    errors.add("購入物を入力してください。");
+
+		boolean formatError = false;                         // 金額に数字以外が混ざっていたか
 		ArrayList<String[]> debitSides = new ArrayList<>();  // 借方の {科目, 金額} を詰める
 		ArrayList<String[]> creditSides = new ArrayList<>(); // 貸方の {科目, 金額} を詰める
 
@@ -170,10 +158,10 @@ public class SlipDao {
 			String ds = at(dSub, i), da = at(dAmt, i), cs = at(cSub, i), ca = at(cAmt, i);
 			// 金額に半角数字とカンマ以外が入っていないか（1回だけメッセージを出す）
 			if (!da.isEmpty() && !da.matches("^[0-9,]+$") && !formatError) {
-				errors.add("借方金額に半角数字以外が入力されています。"); formatError = true;
+				errors.add("金額の欄には半角数字だけを入力してください。"); formatError = true;
 			}
 			if (!ca.isEmpty() && !ca.matches("^[0-9,]+$") && !formatError) {
-				errors.add("貸方金額に半角数字以外が入力されています。"); formatError = true;
+				errors.add("金額の欄には半角数字だけを入力してください。"); formatError = true;
 			}
 			// 借方・貸方それぞれ、入力がある行だけ上へ詰める（空行は捨てる）
 			if (!ds.isEmpty() || !da.isEmpty()) debitSides.add(new String[] { ds, digits(da) });
@@ -193,18 +181,26 @@ public class SlipDao {
 			entries.add(e);
 		}
 
-		// (3) 中身のチェック（1つでも引っかかれば保存しない）
+		// (3) 明細の数と、貸借の一致を確認する
 		if (entries.isEmpty()) {
 			errors.add("明細を1行以上入力してください。");
 		}
 		if (!formatError && !entries.isEmpty() && debitTotal != creditTotal) {
 			errors.add("借方と貸方の合計金額が一致しません。");
 		}
+		return entries;
+	}
+
+	// ===== 【saveFromForm】入力を検査して、OKなら登録／更新するメソッド =====
+	//   検査は buildEntries に任せる。OKなら伝票を組み立てて save()。NGなら -1 を返す。
+	public int saveFromForm(Integer id, String date, String partner, String desc, String note,
+			String[] dSub, String[] dAmt, String[] cSub, String[] cAmt, ArrayList<String> errors) {
+
+		ArrayList<Entry> entries = buildEntries(date, partner, desc, dSub, dAmt, cSub, cAmt, errors);
 		if (!errors.isEmpty()) {
 			return -1; // NG。呼び出し側で入力画面に戻す
 		}
-
-		// (4) OKなら保存用の伝票を組み立てて save() に渡す
+		// OKなら保存用の伝票を組み立てて save() に渡す
 		Slip slip = new Slip();
 		slip.setId(id == null ? 0 : id); // id が無ければ 0（＝新規登録の合図）
 		slip.setDate(nz(date));
@@ -315,8 +311,7 @@ public class SlipDao {
 	// ===== 【ensureSchema】DBとテーブルが無ければ作るメソッド（何度呼んでも安全）=====
 	private void ensureSchema() throws SQLException {
 		// (1) データベース本体を作る（既にあれば何もしない）
-		try (Connection c = DriverManager.getConnection(serverUrl, user, password);
-				Statement st = c.createStatement()) {
+		try (Connection c = Db.getServerConnection(); Statement st = c.createStatement()) {
 			st.executeUpdate("CREATE DATABASE IF NOT EXISTS otameshirenshuu DEFAULT CHARACTER SET utf8mb4");
 		} catch (SQLException ignore) {
 		}
@@ -342,13 +337,12 @@ public class SlipDao {
 		}
 	}
 
-	// ===== 【getConnection】DB接続を1本もらうメソッド =====
+	// ===== 【getConnection】DB接続を1本もらうメソッド（実際の接続作りは Db に任せる）=====
 	private Connection getConnection() throws SQLException {
-		return DriverManager.getConnection(url, user, password);
+		return Db.getConnection();
 	}
 
 	// ===== 【readSlip】SELECT結果の1行＋その明細を、1つの Slip に組み立てるメソッド =====
-	//   （もとの mapSlip と loadEntries を1つにまとめたもの）
 	private Slip readSlip(Connection c, ResultSet rs) throws SQLException {
 		// (1) 伝票の見出し部分を Slip に詰める
 		Slip s = new Slip();

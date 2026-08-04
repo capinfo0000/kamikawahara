@@ -1,26 +1,25 @@
 <%@ page contentType="text/html; charset=UTF-8" %>
-<%@ page import="java.util.*, otameshirenshuu.Slip, otameshirenshuu.SlipDao, otameshirenshuu.SlipPage" %>
+<%@ page import="java.util.*, otameshirenshuu.Slip, otameshirenshuu.SlipList, otameshirenshuu.SlipDao" %>
 <%
 	/* ========================================================================
 	 * 【一覧画面（表示だけ担当）】
-	 *   検索・並び替え・ページング・削除の処理は SlipPage.list(...) にまとめてある。
-	 *   ここでは、その結果（HashMap）を受け取って表を組み立てるだけ。
+	 *   検索・並び替え・ページング・削除は SlipList.execute(...) が計算する。
+	 *   このJSPは、返ってきた HashMap から値を取り出して表を組み立てるだけ。
 	 * ====================================================================== */
 
-	// 下ごしらえを別クラスに任せる（サーブレットではなく普通のメソッド呼び出し）
-	HashMap<String, Object> data = SlipPage.list(request, response);
-	// 削除などで別URLへ飛ばした場合は null が返るので、ここで表示を止める
-	if (data == null) return;
+	SlipList list = new SlipList();
+	HashMap<String, Object> data = list.execute(request, response);
+	if (data == null) return; // 削除で別URLへ飛ばしたときは表示を止める
 
 	// HashMap から、この画面で使う値を取り出す（キー名で1つずつ get する）
-	ArrayList<Slip> pageSlips = (ArrayList<Slip>) data.get("pageSlips");
-	int total       = (Integer) data.get("total");
-	int totalPages  = (Integer) data.get("totalPages");
-	int pageNo      = (Integer) data.get("pageNo");
-	String q        = (String)  data.get("q");
-	String no       = (String)  data.get("no");
-	String sortKey  = (String)  data.get("sortKey");
-	String order    = (String)  data.get("order");
+	List<Slip> pageSlips = (List<Slip>) data.get("pageSlips");
+	int total        = (Integer) data.get("total");
+	int totalPages   = (Integer) data.get("totalPages");
+	int pageNo       = (Integer) data.get("pageNo");
+	String q         = (String)  data.get("q");
+	String no        = (String)  data.get("no");
+	String sortKey   = (String)  data.get("sortKey");
+	String order     = (String)  data.get("order");
 	boolean hasSearch    = (Boolean) data.get("hasSearch");
 	String searchParams  = (String) data.get("searchParams");
 	String navParams     = (String) data.get("navParams");
@@ -28,6 +27,9 @@
 	String dateArrow     = (String) data.get("dateArrow");
 	String idNextOrder   = (String) data.get("idNextOrder");
 	String dateNextOrder = (String) data.get("dateNextOrder");
+
+	// 明細・新規登録へ GET で渡す「検索条件＋ページ」（明細から戻るとき同じ状態に戻すため）
+	String detailState = "sortKey=" + sortKey + "&order=" + order + "&page=" + pageNo + searchParams;
 %>
 <!DOCTYPE html>
 <html lang="ja">
@@ -41,7 +43,7 @@
     <div class="page-wrapper">
         <h1>伝票一覧</h1>
 
-        <!-- 検索と新規登録 -->
+        <!-- 検索と新規登録（検索は index.jsp へ GET。並び順は hidden で保持）-->
         <div class="actions-container">
             <form class="search-area" method="get" action="index.jsp">
                 <input type="text" name="no" value="<%= SlipDao.esc(no) %>" class="no-search-box" placeholder="伝票番号（例: 5 または 1~10）">
@@ -55,7 +57,8 @@
                     <a href="index.jsp?sortKey=<%= sortKey %>&order=<%= order %>" class="search-clear-btn" style="margin-left:8px; font-size:13px; color:#337ab7; text-decoration:none;">クリア</a>
                 <% } %>
             </form>
-            <a href="detail.jsp?mode=new" class="register-btn" style="text-decoration:none; display:inline-block;">新規登録</a>
+            <!-- 新規登録：IDなしで明細へ GET → 新規モードになる -->
+            <a href="detail.jsp?<%= detailState %>" class="register-btn" style="text-decoration:none; display:inline-block;">新規登録</a>
         </div>
 
         <% if (hasSearch) { %>
@@ -65,7 +68,7 @@
         %></p>
         <% } %>
 
-        <!-- 伝票テーブル -->
+        <!-- 伝票テーブル（見出しクリックで並び替え）-->
         <table class="slip-table">
             <thead>
                 <tr>
@@ -88,7 +91,8 @@
                     <td class="col-partner"><%= SlipDao.esc(s.getPartnerName()) %></td>
                     <td class="col-description"><%= SlipDao.esc(s.getDescription()) %></td>
                     <td class="col-amount col-amount-td"><%= SlipDao.yen(s.getTotal()) %></td>
-                    <td class="col-detail"><a href="detail.jsp?mode=view&id=<%= s.getId() %>" class="detail-link">明細</a></td>
+                    <!-- 明細：ID付きで明細へ GET → 閲覧モードになる -->
+                    <td class="col-detail"><a href="detail.jsp?id=<%= s.getId() %>&<%= detailState %>" class="detail-link">明細</a></td>
                     <td class="col-delete-cell">
                         <a href="index.jsp?action=delete&id=<%= s.getId() %>&sortKey=<%= sortKey %>&order=<%= order %>&page=<%= pageNo %><%= searchParams %>"
                            class="btn-list-delete" style="text-decoration:none; display:inline-block; padding:2px 10px;"
@@ -99,7 +103,7 @@
             </tbody>
         </table>
 
-        <!-- ページネーション -->
+        <!-- ページネーション（前後移動・番号入力はすべて hidden で条件を保持）-->
         <% if (total > 0) { %>
         <div class="pagination">
             <% if (pageNo > 1) { %>
