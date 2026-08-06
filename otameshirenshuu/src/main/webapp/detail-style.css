@@ -626,6 +626,28 @@ div.delete-layout:target {
 
 
 
+/* 確認画面の案内文（登録前に内容を見せるとき） */
+.confirm-notice{
+	background: #eef6ff;
+	border: 1px solid #b6d4f2;
+	color: #1b4f72;
+	padding: 12px 16px;
+	margin: 0 0 16px 0;
+	border-radius: 4px;
+	font-size: 14px;
+	line-height: 1.7;
+}
+
+/* 入力エラーのポップアップ（JavaScriptを使わずチェックボックスで開閉する方式）
+   ・チェックボックス本体は隠す
+   ・ポップアップは普段は非表示
+   ・チェックボックスがON（checked）のときだけ、すぐ隣のポップアップを表示する
+   サーバーはエラーがあるとき checkbox を checked 付きで出す＝最初から開いて見える。
+   「閉じて修正する」ラベルを押すとチェックが外れて閉じる（他の操作で再表示されない）。 */
+.err-toggle{ display: none; }
+.err-popup{ display: none; }
+.err-toggle:checked + .err-popup{ display: flex; }
+
 /* 入力エラー表示バナー（サーブレットのバリデーションエラー用） */
 .error-banner{
 	background: #fdecea;
